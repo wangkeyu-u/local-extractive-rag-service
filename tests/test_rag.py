@@ -118,6 +118,16 @@ def test_health_reports_index_state(tmp_path, monkeypatch, client):
     assert response.json()["chunks_indexed"] == 5
 
 
+def test_root_lists_service_endpoints(client):
+    response = client.get("/")
+    body = response.json()
+
+    assert response.status_code == 200
+    assert body["service"] == "Local Extractive RAG API Service"
+    assert body["endpoints"]["index"] == "POST /index"
+    assert body["endpoints"]["ask"] == "POST /ask"
+
+
 def test_asking_before_index_raises_error(client):
     response = client.post("/ask", json={"question": "What is the refund policy?", "top_k": 1})
 
@@ -150,6 +160,16 @@ def test_relevant_question_returns_at_least_one_source(tmp_path, monkeypatch, cl
     assert body["chunks"][0]["source"] == "refund_policy.txt"
     assert len(body["sources"]) >= 1
     assert body["sources"][0]["source"] == "refund_policy.txt"
+
+
+def test_top_k_validation_returns_422(tmp_path, monkeypatch, client):
+    write_sample_docs(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    client.post("/index")
+
+    response = client.post("/ask", json={"question": "What is the refund policy?", "top_k": 99})
+
+    assert response.status_code == 422
 
 
 def test_unrelated_question_returns_not_enough_evidence(tmp_path, monkeypatch, client):
@@ -194,6 +214,18 @@ def test_empty_documents_return_clear_error(tmp_path, monkeypatch, client):
 
     assert response.status_code == 400
     assert response.json() == {"detail": "documents are empty; no index can be built"}
+
+
+def test_stop_word_only_documents_return_clear_error(tmp_path, monkeypatch, client):
+    write_docs(tmp_path, {"words.txt": "the and is are to of"})
+    monkeypatch.chdir(tmp_path)
+
+    response = client.post("/index")
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "documents do not contain searchable text; no index can be built"
+    }
 
 
 def test_failed_reindex_clears_stale_index(tmp_path, monkeypatch, client):

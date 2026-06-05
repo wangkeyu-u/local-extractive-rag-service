@@ -29,6 +29,21 @@ def convert_rag_error(error: RagServiceError) -> HTTPException:
     return HTTPException(status_code=error.status_code, detail=error.detail)
 
 
+@app.get("/")
+def service_info() -> dict[str, Any]:
+    return {
+        "service": app.title,
+        "version": app.version,
+        "endpoints": {
+            "index": "POST /index",
+            "ask": "POST /ask",
+            "documents": "GET /documents",
+            "health": "GET /health",
+            "docs": "GET /docs",
+        },
+    }
+
+
 @app.post("/index", response_model=IndexResponse)
 def index_documents() -> dict[str, Any]:
     try:

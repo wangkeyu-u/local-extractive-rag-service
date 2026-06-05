@@ -26,6 +26,7 @@ The project also includes a React/Vite frontend for testing the API through a po
 - pytest
 - React
 - Vite
+- Docker
 
 ## Project Structure
 
@@ -48,6 +49,8 @@ The project also includes a React/Vite frontend for testing the API through a po
 │   └── vite.config.js
 ├── tests/
 ├── .env.example
+├── Dockerfile
+├── Makefile
 ├── requirements.txt
 └── README.md
 ```
@@ -94,6 +97,12 @@ Open FastAPI docs:
 http://127.0.0.1:8000/docs
 ```
 
+Convenience command:
+
+```bash
+make run
+```
+
 ## Frontend Setup
 
 ```bash
@@ -111,6 +120,12 @@ http://127.0.0.1:5173
 The frontend uses Vite proxying, so `/api/index`, `/api/ask`, `/api/documents`, and `/api/health` forward to `http://127.0.0.1:8000`.
 
 ## API Examples
+
+Service info:
+
+```bash
+curl http://127.0.0.1:8000/
+```
 
 Index documents:
 
@@ -207,6 +222,12 @@ Backend tests:
 pytest -q
 ```
 
+Or:
+
+```bash
+make test
+```
+
 Frontend production build:
 
 ```bash
@@ -223,6 +244,21 @@ curl -X POST http://127.0.0.1:8000/ask \
   -d '{"question": "Does the company sell customer data?", "top_k": 3}'
 ```
 
+## Docker
+
+Build and run the backend container:
+
+```bash
+docker build -t local-extractive-rag-service .
+docker run --rm -p 8000:8000 local-extractive-rag-service
+```
+
+Then open:
+
+```txt
+http://127.0.0.1:8000/docs
+```
+
 ## Tradeoffs
 
 - TF-IDF is simple, local, and explainable, but weaker than semantic embeddings.
@@ -237,4 +273,5 @@ curl -X POST http://127.0.0.1:8000/ask \
 - Add local embeddings for better semantic matching.
 - Add document upload and reindexing from the frontend.
 - Add sentence-level highlighting inside evidence cards.
-- Add Docker support.
+- Add GitHub Actions CI when the GitHub token has `workflow` scope.
+- Add a hosted demo environment.
