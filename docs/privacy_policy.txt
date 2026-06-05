@@ -1,0 +1,6 @@
+AquaNote stores customer notes securely and uses account information only to provide the note-taking service.
+AquaNote does not sell customer data to advertisers or data brokers.
+
+Customer notes are private by default.
+Team notebook content is only visible to members who have been invited to that notebook.
+Users can request account deletion by contacting support.

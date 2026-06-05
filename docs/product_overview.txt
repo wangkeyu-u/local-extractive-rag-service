@@ -1,0 +1,6 @@
+AquaNote is a fictional smart note-taking product for students and remote teams.
+It helps users capture meeting notes, organize class summaries, and search saved notes by keyword.
+AquaNote works in a web browser and on mobile devices.
+
+The product includes shared notebooks, task highlights, and simple export tools.
+AquaNote is designed for small teams that want organized notes without a complex setup process.

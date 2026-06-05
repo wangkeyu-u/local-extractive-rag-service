@@ -1,0 +1,7 @@
+Customers can request a refund within 30 days of purchase.
+Refund requests must include the order number and the email address used at checkout.
+Approved refunds are returned to the original payment method after review.
+
+Monthly subscriptions are refundable only during the first 30 days.
+Annual subscriptions can be refunded within 30 days if the account has not exceeded the included team workspace limit.
+Gift cards and promotional credits are not refundable.

@@ -1,0 +1,11 @@
+.venv/
+.env
+.env.*
+!.env.example
+!frontend/.env.example
+__pycache__/
+*.pyc
+.pytest_cache/
+docx_render/
+frontend/node_modules/
+frontend/dist/
