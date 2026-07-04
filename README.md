@@ -1,6 +1,10 @@
 # Local Extractive RAG API Service
 
-Small local RAG software for answering questions from plain-text documents in `docs/`.
+![Local Extractive RAG Service hero](docs/assets/readme-hero.png)
+
+Local-only extractive RAG for plain-text documents. It indexes files, retrieves evidence, and answers only from matched source chunks without calling external LLM APIs.
+
+**Built for:** FastAPI document Q&A, TF-IDF retrieval, grounded answers, evidence chunks, private local demos.
 
 The backend is a FastAPI service that builds an in-memory TF-IDF retrieval index and returns extractive answers grounded only in retrieved document evidence. It does not call OpenAI, Anthropic, DeepSeek, Gemini, external LLM APIs, or paid external services.
 
