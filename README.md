@@ -1,3 +1,22 @@
+# Local Extractive RAG API — 本地抽取式 RAG 服务 / Local-Only Extractive RAG
+
+> 纯本地、不调用任何外部 LLM API 的抽取式 RAG —— TF-IDF 检索、证据锚定、只从文档中回答。
+>
+> Local-only extractive RAG that never calls external LLM APIs — TF-IDF retrieval, evidence-grounded, answers only from matched source chunks.
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688)](https://fastapi.tiangolo.com/)
+[![scikit-learn](https://img.shields.io/badge/ML-scikit--learn-F7931E)](https://scikit-learn.org/)
+[![Local Only](https://img.shields.io/badge/Local%20Only-No%20LLM%20API-success)]()
+
+---
+
+## 项目简介（中文）
+
+纯本地运行的抽取式 RAG API 服务，用于文本文档问答。它构建内存中的 TF-IDF 检索索引，从匹配的文档片段中生成抽取式回答，**不调用 OpenAI、Anthropic、DeepSeek、Gemini 或任何外部 LLM API**。证据不足时返回"证据不足"的安全回答而非编造。包含 React/Vite 前端用于本地 UI 测试。核心端点：`POST /index` 索引文档、`POST /ask` 提问并返回带来源、分数和文本的证据片段。
+
+---
+
 # Local Extractive RAG API Service
 
 ![Local Extractive RAG Service hero](docs/assets/readme-hero.png)
