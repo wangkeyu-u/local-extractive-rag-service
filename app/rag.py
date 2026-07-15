@@ -1,5 +1,7 @@
 import re
+from datetime import UTC, datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -10,7 +12,7 @@ DOCS_DIR = Path("docs")
 CHUNK_SIZE_WORDS = 200
 CHUNK_OVERLAP_WORDS = 40
 TOP_K = 3
-MIN_SCORE = 0.15
+MIN_SCORE = 0.12
 NOT_ENOUGH_EVIDENCE_ANSWER = (
     "I do not have enough evidence in the provided documents to answer this question."
 )
@@ -55,6 +57,8 @@ class InMemoryRagIndex:
         self.vectorizer: TfidfVectorizer | None = None
         self.matrix: Any | None = None
         self.chunks: list[dict[str, Any]] = []
+        self.document_count = 0
+        self.indexed_at: str | None = None
 
     @property
     def is_ready(self) -> bool:
@@ -64,6 +68,8 @@ class InMemoryRagIndex:
         self.vectorizer = None
         self.matrix = None
         self.chunks = []
+        self.document_count = 0
+        self.indexed_at = None
 
 
 rag_index = InMemoryRagIndex()
@@ -146,7 +152,12 @@ def build_index(docs_dir: Path = DOCS_DIR) -> dict[str, Any]:
     chunks = build_chunks(documents)
     chunk_texts = [chunk["text"] for chunk in chunks]
 
-    vectorizer = TfidfVectorizer(stop_words="english")
+    vectorizer = TfidfVectorizer(
+        stop_words="english",
+        ngram_range=(1, 2),
+        strip_accents="unicode",
+        sublinear_tf=True,
+    )
     try:
         matrix = vectorizer.fit_transform(chunk_texts)
     except ValueError as exc:
@@ -156,12 +167,17 @@ def build_index(docs_dir: Path = DOCS_DIR) -> dict[str, Any]:
     rag_index.vectorizer = vectorizer
     rag_index.matrix = matrix
     rag_index.chunks = chunks
+    rag_index.document_count = len(documents)
+    rag_index.indexed_at = datetime.now(UTC).isoformat()
 
     return {
         "status": "indexed",
         "documents_indexed": len(documents),
         "chunks_indexed": len(chunks),
         "sources": [source for source, _ in documents],
+        "chunk_size": CHUNK_SIZE_WORDS,
+        "chunk_overlap": CHUNK_OVERLAP_WORDS,
+        "indexed_at": rag_index.indexed_at,
     }
 
 
@@ -176,15 +192,19 @@ def retrieve_chunks(question: str, top_k: int = TOP_K) -> list[dict[str, Any]]:
     scores = cosine_similarity(query_vector, rag_index.matrix)[0]
     ranked_indexes = scores.argsort()[::-1][:top_k]
 
+    question_tokens = tokenize(question)
     results: list[dict[str, Any]] = []
-    for chunk_index in ranked_indexes:
+    for rank, chunk_index in enumerate(ranked_indexes, start=1):
         chunk = rag_index.chunks[int(chunk_index)]
+        matched_terms = sorted(question_tokens & tokenize(chunk["text"]))
         results.append(
             {
                 "source": chunk["source"],
                 "chunk_id": chunk["chunk_id"],
                 "score": round(float(scores[chunk_index]), 4),
                 "text": chunk["text"],
+                "rank": rank,
+                "matched_terms": matched_terms,
             }
         )
 
@@ -207,37 +227,44 @@ def split_sentences(text: str) -> list[str]:
     ]
 
 
-def select_relevant_sentences(question: str, sources: list[dict[str, Any]], limit: int = TOP_K) -> list[str]:
+def select_relevant_sentences(
+    question: str,
+    sources: list[dict[str, Any]],
+    limit: int = TOP_K,
+) -> list[tuple[str, int]]:
     question_tokens = tokenize(question)
-    scored_sentences: list[tuple[int, int, str]] = []
+    scored_sentences: list[tuple[int, int, int, str]] = []
 
     for source_rank, source in enumerate(sources):
-        for sentence in split_sentences(source["text"]):
+        for sentence_rank, sentence in enumerate(split_sentences(source["text"])):
             overlap = len(question_tokens & tokenize(sentence))
-            scored_sentences.append((overlap, -source_rank, sentence))
+            scored_sentences.append((overlap, -source_rank, -sentence_rank, sentence))
 
     scored_sentences.sort(reverse=True)
 
-    selected: list[str] = []
-    for overlap, _, sentence in scored_sentences:
+    selected: list[tuple[str, int]] = []
+    for overlap, negative_source_rank, _, sentence in scored_sentences:
         if overlap == 0 and selected:
             break
-        if sentence not in selected:
-            selected.append(sentence)
+        source_rank = -negative_source_rank
+        if all(existing_sentence != sentence for existing_sentence, _ in selected):
+            selected.append((sentence, source_rank))
         if len(selected) == limit:
             break
 
     if selected:
         return selected
 
-    return [sources[0]["text"]] if sources else []
+    return [(sources[0]["text"], 0)] if sources else []
 
 
 def generate_extractive_answer(question: str, sources: list[dict[str, Any]]) -> str:
     sentences = select_relevant_sentences(question, sources)
     if not sentences:
         return NOT_ENOUGH_EVIDENCE_ANSWER
-    return " ".join(sentences)
+    return " ".join(
+        f"{sentence} [{source_rank + 1}]" for sentence, source_rank in sentences
+    )
 
 
 def list_document_info(docs_dir: Path = DOCS_DIR) -> list[dict[str, int | str]]:
@@ -247,17 +274,30 @@ def list_document_info(docs_dir: Path = DOCS_DIR) -> list[dict[str, int | str]]:
             "source": source,
             "characters": len(text),
             "words": len(text.split()),
+            "chunks": len(chunk_text(text)),
         }
         for source, text in documents
     ]
 
 
-def get_health() -> dict[str, bool | int | str]:
+def get_health() -> dict[str, bool | int | str | None]:
     return {
         "status": "ok",
         "index_ready": rag_index.is_ready,
         "chunks_indexed": len(rag_index.chunks),
+        "documents_indexed": rag_index.document_count,
+        "indexed_at": rag_index.indexed_at,
     }
+
+
+def confidence_label(score: float) -> str:
+    if score >= 0.3:
+        return "high"
+    if score >= 0.16:
+        return "medium"
+    if score >= MIN_SCORE:
+        return "low"
+    return "insufficient"
 
 
 def answer_question(question: str, top_k: int = TOP_K) -> dict[str, Any]:
@@ -265,12 +305,18 @@ def answer_question(question: str, top_k: int = TOP_K) -> dict[str, Any]:
     if not clean_question:
         raise RagServiceError("empty question")
 
+    started_at = perf_counter()
     sources = retrieve_chunks(clean_question, top_k=top_k)
+    retrieval_ms = round((perf_counter() - started_at) * 1000, 2)
+    query_terms = sorted(tokenize(clean_question))
     if not sources or sources[0]["score"] < MIN_SCORE:
         return {
             "answer": NOT_ENOUGH_EVIDENCE_ANSWER,
             "chunks": [],
             "sources": [],
+            "confidence": "insufficient",
+            "retrieval_ms": retrieval_ms,
+            "query_terms": query_terms,
         }
 
     strong_sources = [source for source in sources if source["score"] >= MIN_SCORE]
@@ -278,4 +324,7 @@ def answer_question(question: str, top_k: int = TOP_K) -> dict[str, Any]:
         "answer": generate_extractive_answer(clean_question, strong_sources),
         "chunks": strong_sources,
         "sources": strong_sources,
+        "confidence": confidence_label(strong_sources[0]["score"]),
+        "retrieval_ms": retrieval_ms,
+        "query_terms": query_terms,
     }

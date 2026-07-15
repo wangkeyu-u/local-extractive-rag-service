@@ -71,18 +71,19 @@ def test_indexing_works_with_sample_docs(tmp_path, monkeypatch):
 
     response = rag.build_index()
 
-    assert response == {
-        "status": "indexed",
-        "documents_indexed": 5,
-        "chunks_indexed": 5,
-        "sources": [
-            "privacy_policy.txt",
-            "product_overview.txt",
-            "refund_policy.txt",
-            "shipping_policy.txt",
-            "support_policy.txt",
-        ],
-    }
+    assert response["status"] == "indexed"
+    assert response["documents_indexed"] == 5
+    assert response["chunks_indexed"] == 5
+    assert response["sources"] == [
+        "privacy_policy.txt",
+        "product_overview.txt",
+        "refund_policy.txt",
+        "shipping_policy.txt",
+        "support_policy.txt",
+    ]
+    assert response["chunk_size"] == rag.CHUNK_SIZE_WORDS
+    assert response["chunk_overlap"] == rag.CHUNK_OVERLAP_WORDS
+    assert response["indexed_at"]
     assert rag.rag_index.is_ready
 
 
@@ -97,6 +98,7 @@ def test_document_listing_returns_doc_metadata(tmp_path, monkeypatch, client):
     assert len(body["documents"]) == 5
     assert body["documents"][0]["source"] == "privacy_policy.txt"
     assert body["documents"][0]["words"] > 0
+    assert body["documents"][0]["chunks"] == 1
 
 
 def test_health_reports_index_state(tmp_path, monkeypatch, client):
@@ -106,6 +108,8 @@ def test_health_reports_index_state(tmp_path, monkeypatch, client):
         "status": "ok",
         "index_ready": False,
         "chunks_indexed": 0,
+        "documents_indexed": 0,
+        "indexed_at": None,
     }
 
     write_sample_docs(tmp_path)
@@ -116,6 +120,8 @@ def test_health_reports_index_state(tmp_path, monkeypatch, client):
     assert response.status_code == 200
     assert response.json()["index_ready"] is True
     assert response.json()["chunks_indexed"] == 5
+    assert response.json()["documents_indexed"] == 5
+    assert response.json()["indexed_at"]
 
 
 def test_root_lists_service_endpoints(client):
@@ -160,6 +166,12 @@ def test_relevant_question_returns_at_least_one_source(tmp_path, monkeypatch, cl
     assert body["chunks"][0]["source"] == "refund_policy.txt"
     assert len(body["sources"]) >= 1
     assert body["sources"][0]["source"] == "refund_policy.txt"
+    assert body["sources"][0]["rank"] == 1
+    assert "refund" in body["sources"][0]["matched_terms"]
+    assert body["confidence"] in {"low", "medium", "high"}
+    assert body["retrieval_ms"] >= 0
+    assert "refund" in body["query_terms"]
+    assert "[1]" in body["answer"]
 
 
 def test_top_k_validation_returns_422(tmp_path, monkeypatch, client):
@@ -184,6 +196,9 @@ def test_unrelated_question_returns_not_enough_evidence(tmp_path, monkeypatch, c
         "answer": rag.NOT_ENOUGH_EVIDENCE_ANSWER,
         "chunks": [],
         "sources": [],
+        "confidence": "insufficient",
+        "retrieval_ms": response.json()["retrieval_ms"],
+        "query_terms": ["ceo", "company"],
     }
 
 
@@ -242,3 +257,22 @@ def test_failed_reindex_clears_stale_index(tmp_path, monkeypatch, client):
     assert response.status_code == 400
     assert response.json() == {"detail": "no text documents found in docs folder"}
     assert not rag.rag_index.is_ready
+
+
+def test_retrieval_ranks_exact_policy_terms_first(tmp_path, monkeypatch):
+    write_sample_docs(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    rag.build_index()
+
+    results = rag.retrieve_chunks("standard shipping business days", top_k=3)
+
+    assert results[0]["source"] == "shipping_policy.txt"
+    assert results[0]["rank"] == 1
+    assert {"shipping", "standard"}.issubset(results[0]["matched_terms"])
+
+
+def test_confidence_label_has_clear_thresholds():
+    assert rag.confidence_label(0.5) == "high"
+    assert rag.confidence_label(0.2) == "medium"
+    assert rag.confidence_label(rag.MIN_SCORE) == "low"
+    assert rag.confidence_label(0.01) == "insufficient"

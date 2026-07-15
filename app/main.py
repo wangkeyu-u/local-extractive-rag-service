@@ -10,7 +10,7 @@ from .schemas import AskRequest, AskResponse, DocumentsResponse, HealthResponse,
 app = FastAPI(
     title="Local Extractive RAG API Service",
     description="A local TF-IDF retrieval service that answers only from indexed text documents.",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 app.add_middleware(

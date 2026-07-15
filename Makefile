@@ -5,11 +5,12 @@ endif
 
 API_HOST ?= 127.0.0.1
 API_PORT ?= 8000
+PYTHON ?= python3
 
-.PHONY: install test run frontend-install frontend-dev frontend-build docker-build
+.PHONY: install test run frontend-install frontend-dev frontend-build check docker-build
 
 install:
-	python -m venv .venv
+	$(PYTHON) -m venv .venv
 	.venv/bin/pip install -r requirements.txt
 
 test:
@@ -26,6 +27,8 @@ frontend-dev:
 
 frontend-build:
 	cd frontend && npm run build
+
+check: test frontend-build
 
 docker-build:
 	docker build -t local-extractive-rag-service .
