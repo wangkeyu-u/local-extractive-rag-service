@@ -8,7 +8,7 @@ Groundline is not a general AI chat product. It is a local evidence desk for a s
 2. What does the corpus support?
 3. Can I inspect the exact source behind the answer?
 
-The visual direction is an **editorial research desk crossed with a retrieval console**: warm paper, dark archive green, vermilion annotations, compact technical labels, and a serif answer voice. It deliberately avoids the familiar floating-gradient chatbot look.
+The visual direction is a **modern evidence console**: cool neutral surfaces, a dark navigation rail, a restrained cobalt interaction color, and compact data views. It behaves like a desktop product rather than a marketing page, and deliberately avoids both generic chatbot UI and decorative editorial styling.
 
 ## 2. Primary users
 
@@ -70,9 +70,9 @@ flowchart TD
 
 | Width | Behavior |
 | --- | --- |
-| `> 1180px` | Full 236px navigation, answer canvas, 336px evidence rail |
-| `980–1180px` | Compact evidence rail; content spacing tightens |
-| `< 980px` | Icon-only navigation is the minimum supported compact desktop fallback |
+| `> 1180px` | Full 236px navigation, answer canvas, 360px evidence rail |
+| `980–1180px` | 76px icon navigation, 320px evidence rail, tighter content spacing |
+| `< 980px` | Unsupported; the interface preserves a 960px desktop canvas instead of switching to phone UI |
 
 The product is intentionally designed for desktop use. Phone-sized navigation, drawers, and mobile-specific interaction patterns are out of scope. Reduced-motion preferences still collapse nonessential animation.
 
@@ -91,6 +91,7 @@ The product is intentionally designed for desktop use. Phone-sized navigation, d
 - Semantic `main`, `nav`, `aside`, form, heading, and button elements
 - Visible keyboard focus
 - Text labels on all icon-only controls
+- Stable accessible names remain when compact desktop CSS hides visible navigation labels
 - Enter to submit and Shift+Enter for a new line
 - `Cmd/Ctrl + 1/2/3` navigation shortcuts
 - Color is reinforced with text and icons for status
@@ -103,3 +104,12 @@ The product is intentionally designed for desktop use. Phone-sized navigation, d
 - No editable chunking parameters that suggest runtime support the backend does not have
 - No generative-model controls in a strictly extractive project
 - No inflated “semantic accuracy” claims from a four-case Top-1 check
+
+## 9. Visual system
+
+- One sans-serif family (Manrope) across interface copy, controls, answer text, and diagnostics.
+- 14px base text with a restrained fixed type scale; no oversized or fluid marketing headlines.
+- White or near-black product surfaces over a cool neutral canvas, with one-pixel structural borders and minimal elevation.
+- Cobalt indicates actions and selection; green, amber, and red are reserved for explicit system states.
+- Full-surface selection replaces decorative side stripes. Gradients, stamps, glass effects, and ornamental metadata are out of scope.
+- Ask keeps the answer and ranked evidence visible in one desktop workspace; Library and Evaluate use compact tables optimized for scanning.

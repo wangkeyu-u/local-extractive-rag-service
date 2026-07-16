@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Archive,
   ArrowRight,
   BarChart3,
   BookOpen,
@@ -12,7 +11,6 @@ import {
   Copy,
   Database,
   FileSearch,
-  FileText,
   FlaskConical,
   Gauge,
   History,
@@ -24,10 +22,8 @@ import {
   PanelRight,
   RefreshCw,
   Search,
-  Send,
   Settings2,
   ShieldCheck,
-  Sparkles,
   Sun,
   Terminal,
   X,
@@ -180,7 +176,7 @@ function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand-row">
-        <button className="brand" type="button" onClick={() => onNavigate("ask")}>
+        <button className="brand" type="button" onClick={() => onNavigate("ask")} aria-label="Open Ask workspace" title="Groundline">
           <span className="brand-symbol" aria-hidden="true">
             <span />
             <span />
@@ -188,7 +184,7 @@ function Sidebar({
           </span>
           <span>
             <strong>GROUNDLINE</strong>
-            <small>LOCAL RAG / 01</small>
+            <small>Evidence workspace</small>
           </span>
         </button>
       </div>
@@ -196,14 +192,14 @@ function Sidebar({
       <div className="workspace-card">
         <span className="workspace-monogram">AQ</span>
         <span>
-          <small>ACTIVE CORPUS</small>
+          <small>Active corpus</small>
           <strong>AquaNote policies</strong>
         </span>
         <ChevronRight size={16} />
       </div>
 
       <nav className="primary-nav" aria-label="Primary navigation">
-        <p>WORKBENCH</p>
+        <p>Workspace</p>
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -212,6 +208,8 @@ function Sidebar({
               key={item.id}
               className={activeView === item.id ? "is-active" : ""}
               onClick={() => onNavigate(item.id)}
+              aria-label={item.label}
+              title={item.label}
             >
               <Icon size={18} />
               <span>{item.label}</span>
@@ -224,7 +222,7 @@ function Sidebar({
       <section className="index-card">
         <div className="index-card-heading">
           <span className={health?.index_ready ? "status-dot online" : "status-dot"} />
-          <span>{health ? "LOCAL API ONLINE" : "API OFFLINE"}</span>
+          <span>{health ? "Local API online" : "API offline"}</span>
         </div>
         <strong>{health?.index_ready ? "Evidence is ready." : "Index required."}</strong>
         <p>
@@ -241,7 +239,7 @@ function Sidebar({
       <div className="privacy-note">
         <ShieldCheck size={18} />
         <span>
-          <strong>No model calls</strong>
+          <strong>Local and extractive</strong>
           <small>Documents never leave this machine.</small>
         </span>
       </div>
@@ -263,9 +261,9 @@ function Topbar({
   onSettings,
 }) {
   const titles = {
-    ask: ["Answer desk", "Query the evidence"],
-    library: ["Corpus library", "Inspect indexed material"],
-    evaluate: ["Retrieval lab", "Measure before you trust"],
+    ask: ["Ask", "Evidence workspace"],
+    library: ["Library", "Indexed material"],
+    evaluate: ["Evaluate", "Retrieval checks"],
   };
   return (
     <header className="topbar">
@@ -275,7 +273,7 @@ function Topbar({
         <strong>{titles[activeView][1]}</strong>
       </div>
       <div className="topbar-actions">
-        <span className="local-pill"><span /> LOCAL ONLY</span>
+        <span className="local-pill"><span /> Local only</span>
         <IconButton label="Retrieval settings" onClick={onSettings}>
           <Settings2 size={17} />
         </IconButton>
@@ -296,13 +294,12 @@ function EmptyEvidence() {
   return (
     <div className="empty-evidence">
       <div className="retrieval-orbit">
-        <span />
         <FileSearch size={23} />
       </div>
-      <strong>No trace yet</strong>
-      <p>Ask a question and the exact supporting chunks will appear here.</p>
+      <strong>No evidence yet</strong>
+      <p>Run a query to inspect ranked chunks, matched terms, and source metadata.</p>
       <div className="mini-pipeline">
-        <span>QUERY</span><i /><span>RANK</span><i /><span>QUOTE</span>
+        <span>Query</span><i /><span>Rank</span><i /><span>Inspect</span>
       </div>
     </div>
   );
@@ -313,8 +310,8 @@ function EvidencePanel({ open, evidence, selected, onSelect, onClose }) {
     <aside className={`evidence-panel ${open ? "is-open" : ""}`}>
       <div className="evidence-header">
         <div>
-          <small>RETRIEVAL TRACE</small>
-          <strong>Supporting evidence</strong>
+          <small>Retrieval trace</small>
+          <strong>Evidence</strong>
         </div>
         <IconButton label="Close evidence" onClick={onClose}><X size={17} /></IconButton>
       </div>
@@ -329,7 +326,7 @@ function EvidencePanel({ open, evidence, selected, onSelect, onClose }) {
           <>
             <div className="evidence-summary">
               <div>
-                <small>TOP SCORE</small>
+                <small>Top similarity</small>
                 <strong>{formatScore(evidence[0].score)}</strong>
               </div>
               <p>{evidence.length} grounded chunks ranked by local TF-IDF similarity.</p>
@@ -343,14 +340,14 @@ function EvidencePanel({ open, evidence, selected, onSelect, onClose }) {
                   onClick={() => onSelect(chunk)}
                 >
                   <header>
-                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <span>{index + 1}</span>
                     <strong>{chunk.source}</strong>
                     <em>{formatScore(chunk.score)}</em>
                   </header>
                   <p><HighlightedText text={chunk.text} terms={chunk.matched_terms} /></p>
                   <footer>
-                    <span>CHUNK {chunk.chunk_id + 1}</span>
-                    <span>RANK {chunk.rank}</span>
+                    <span>Chunk {chunk.chunk_id + 1}</span>
+                    <span>Rank {chunk.rank}</span>
                     <ArrowRight size={14} />
                   </footer>
                   {selected === chunk && chunk.matched_terms?.length ? (
@@ -392,30 +389,31 @@ function AskView({
       <div className="ask-scroll">
         <div className="ask-container">
           <section className="ask-hero">
-            <div className="section-kicker"><span /> EVIDENCE DESK · LIVE</div>
             <div className="hero-row">
               <div>
-                <h1>Answers with a<br /><em>paper trail.</em></h1>
-                <p>Local retrieval, extractive answers, and the source text beside every claim.</p>
+                <h1>Ask the local corpus</h1>
+                <p>Retrieve an extractive answer, then verify it against the ranked source text.</p>
               </div>
-              <div className="evidence-stamp">
-                <small>BUILT FOR</small>
-                <strong>PROOF</strong>
-                <span>NOT PLAUSIBILITY</span>
+              <div className={`workspace-readiness ${health?.index_ready ? "is-ready" : ""}`}>
+                <span />
+                <div>
+                  <strong>{health?.index_ready ? "Index ready" : "Index pending"}</strong>
+                  <small>{health ? `${documents.length} sources · ${health.chunks_indexed || 0} chunks` : "Waiting for local API"}</small>
+                </div>
               </div>
             </div>
             <div className="metric-strip">
-              <div><small>DOCUMENTS</small><strong>{String(documents.length).padStart(2, "0")}</strong><span>readable sources</span></div>
-              <div><small>INDEXED CHUNKS</small><strong>{String(health?.chunks_indexed || 0).padStart(2, "0")}</strong><span>in memory</span></div>
-              <div><small>CORPUS WORDS</small><strong>{formatNumber(totalWords)}</strong><span>local text</span></div>
-              <div className="metric-promise"><ShieldCheck size={21} /><span><strong>Zero outbound calls</strong><small>Deterministic local pipeline</small></span></div>
+              <div><small>Sources</small><strong>{documents.length}</strong></div>
+              <div><small>Chunks</small><strong>{health?.chunks_indexed || 0}</strong></div>
+              <div><small>Corpus</small><strong>{formatNumber(totalWords)} words</strong></div>
+              <div className="metric-promise"><ShieldCheck size={17} /><span><strong>No outbound calls</strong><small>TF-IDF · extractive</small></span></div>
             </div>
           </section>
 
           <form className="query-composer" onSubmit={onAsk}>
             <div className="composer-label">
-              <span><MessageSquare size={17} /> YOUR QUESTION</span>
-              <span className={health?.index_ready ? "ready" : ""}><i />{health?.index_ready ? "INDEX READY" : "INDEX PENDING"}</span>
+              <span><MessageSquare size={17} /> Question</span>
+              <span className={health?.index_ready ? "ready" : ""}><i />{health?.index_ready ? "Ready" : "Pending"}</span>
             </div>
             <textarea
               value={question}
@@ -436,7 +434,7 @@ function AskView({
                 <input type="range" min="1" max="8" value={topK} onChange={(event) => onTopK(Number(event.target.value))} />
                 <strong>{topK}</strong>
               </div>
-              <span className="keyboard-hint">↵ ASK · ⇧↵ NEW LINE</span>
+              <span className="keyboard-hint">Enter to retrieve · Shift+Enter for a new line</span>
               <button className="ask-button" type="submit" disabled={isAsking || !question.trim() || !health?.index_ready}>
                 {isAsking ? <Loader2 className="spin" size={17} /> : <Search size={17} />}
                 {isAsking ? "Searching…" : "Retrieve answer"}
@@ -445,17 +443,17 @@ function AskView({
           </form>
 
           <div className="example-row">
-            <span>TRY</span>
-            {exampleQuestions.map((example, index) => (
+            <span>Examples</span>
+            {exampleQuestions.map((example) => (
               <button type="button" key={example} onClick={() => onExample(example)}>
-                <small>0{index + 1}</small>{example}<ArrowRight size={14} />
+                {example}<ArrowRight size={14} />
               </button>
             ))}
           </div>
 
           <section className={`answer-card ${answerState ? "has-answer" : ""}`} aria-live="polite">
             <header>
-              <div><Sparkles size={18} /><span>GROUNDED ANSWER</span></div>
+              <div><FileSearch size={18} /><span>Extractive answer</span></div>
               <div className="answer-actions">
                 <ConfidenceBadge confidence={answerState?.confidence} />
                 {answerState ? <IconButton label="Copy answer" onClick={onCopy}><Copy size={16} /></IconButton> : null}
@@ -475,15 +473,15 @@ function AskView({
               </>
             ) : (
               <div className="answer-placeholder">
-                <div className="placeholder-index">A/01</div>
-                <div><strong>Ask the corpus, not a model.</strong><p>The answer will be assembled from matching source sentences and linked back to exact chunks.</p></div>
+                <div className="placeholder-index"><Search size={20} /></div>
+                <div><strong>Ready to retrieve</strong><p>The answer will use matching source sentences and cite the exact chunks used.</p></div>
               </div>
             )}
           </section>
 
           {history.length ? (
             <section className="history-section">
-              <div className="history-heading"><span><History size={16} /> RECENT QUERIES</span><small>Stored in this browser</small></div>
+              <div className="history-heading"><span><History size={16} /> Recent queries</span><small>Stored in this browser</small></div>
               <div className="history-list">
                 {history.slice(0, 4).map((item, index) => (
                   <button type="button" key={item.id} onClick={() => onHistory(item)}>
@@ -513,9 +511,8 @@ function LibraryView({ documents, health, isIndexing, onReindex }) {
     <section className="page-view library-view">
       <div className="page-heading">
         <div>
-          <div className="section-kicker"><span /> CORPUS LIBRARY · 02</div>
-          <h1>Know what the index<br /><em>actually knows.</em></h1>
-          <p>A read-only inventory of every plain-text source used to answer questions.</p>
+          <h1>Corpus library</h1>
+          <p>Inspect every plain-text source currently available to retrieval.</p>
         </div>
         <button className="primary-button" type="button" onClick={onReindex} disabled={isIndexing}>
           {isIndexing ? <Loader2 className="spin" size={17} /> : <RefreshCw size={17} />}
@@ -524,20 +521,20 @@ function LibraryView({ documents, health, isIndexing, onReindex }) {
       </div>
 
       <div className="library-metrics">
-        <div><small>FILES</small><strong>{documents.length}</strong><span>plain-text documents</span></div>
-        <div><small>WORDS</small><strong>{formatNumber(totalWords)}</strong><span>searchable terms</span></div>
-        <div><small>CHARACTERS</small><strong>{formatNumber(totalCharacters)}</strong><span>source material</span></div>
-        <div><small>LAST INDEX</small><strong>{health?.indexed_at ? "READY" : "—"}</strong><span>{formatTime(health?.indexed_at)}</span></div>
+        <div><small>Files</small><strong>{documents.length}</strong><span>plain-text documents</span></div>
+        <div><small>Words</small><strong>{formatNumber(totalWords)}</strong><span>searchable terms</span></div>
+        <div><small>Characters</small><strong>{formatNumber(totalCharacters)}</strong><span>source material</span></div>
+        <div><small>Last index</small><strong>{health?.indexed_at ? "Ready" : "—"}</strong><span>{formatTime(health?.indexed_at)}</span></div>
       </div>
 
       <div className="library-toolbar">
         <label><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Filter source files…" /></label>
-        <span>{visibleDocuments.length} / {documents.length} SOURCES</span>
+        <span>{visibleDocuments.length} / {documents.length} sources</span>
       </div>
 
       <div className="document-table">
         <div className="document-row table-head">
-          <span>SOURCE</span><span>WORDS</span><span>CHUNKS</span><span>SIZE</span><span>STATUS</span>
+          <span>Source</span><span>Words</span><span>Chunks</span><span>Size</span><span>Status</span>
         </div>
         {visibleDocuments.map((document, index) => (
           <article className="document-row" key={document.source}>
@@ -545,14 +542,14 @@ function LibraryView({ documents, health, isIndexing, onReindex }) {
             <span>{formatNumber(document.words)}</span>
             <span>{document.chunks}</span>
             <span>{formatNumber(document.characters)} chars</span>
-            <span className="document-ready"><i /> INDEXED</span>
-            <em>{String(index + 1).padStart(2, "0")}</em>
+            <span className="document-ready"><i /> Indexed</span>
+            <em>{index + 1}</em>
           </article>
         ))}
       </div>
 
       <div className="library-guide">
-        <div><Terminal size={20} /><span><small>ADD MATERIAL</small><strong>Drop a UTF-8 .txt file into <code>docs/</code></strong></span></div>
+        <div><Terminal size={20} /><span><small>Add material</small><strong>Drop a UTF-8 .txt file into <code>docs/</code></strong></span></div>
         <p>Then rebuild the index. Files remain local and the in-memory matrix is replaced atomically.</p>
         <code>cp your-file.txt docs/ && make run</code>
       </div>
@@ -571,9 +568,8 @@ function EvaluationView({ health, results, running, onRun }) {
     <section className="page-view evaluation-view">
       <div className="page-heading">
         <div>
-          <div className="section-kicker"><span /> RETRIEVAL LAB · 03</div>
-          <h1>Measure retrieval<br /><em>before trust.</em></h1>
-          <p>Four transparent golden questions test whether the right source reaches rank one.</p>
+          <h1>Retrieval evaluation</h1>
+          <p>Run four transparent golden questions and check which source reaches rank one.</p>
         </div>
         <button className="primary-button" type="button" onClick={onRun} disabled={running || !health?.index_ready}>
           {running ? <Loader2 className="spin" size={17} /> : <FlaskConical size={17} />}
@@ -583,26 +579,26 @@ function EvaluationView({ health, results, running, onRun }) {
 
       <div className="evaluation-overview">
         <div className="score-card">
-          <div className="score-ring" style={{ "--score-angle": `${(score || 0) * 3.6}deg` }}>
+          <div className="score-ring">
             <span><strong>{score ?? "—"}</strong><small>{score === null ? "NOT RUN" : "/ 100"}</small></span>
           </div>
-          <div><small>RETRIEVAL HEALTH</small><h2>{score === null ? "Awaiting a baseline" : score >= 75 ? "Index is healthy" : "Tune the corpus"}</h2><p>Top-1 source accuracy across the built-in golden set.</p></div>
+          <div><small>Retrieval health</small><h2>{score === null ? "Awaiting a baseline" : score >= 75 ? "Index is healthy" : "Tune the corpus"}</h2><p>Top-1 source accuracy across the built-in golden set.</p></div>
         </div>
         <div className="evaluation-stats">
-          <div><BarChart3 size={18} /><span><small>AVG. SCORE</small><strong>{averageScore === null ? "—" : `${averageScore}%`}</strong></span></div>
-          <div><Zap size={18} /><span><small>PASSED</small><strong>{completed ? `${passed} / ${completed}` : "—"}</strong></span></div>
-          <div><Database size={18} /><span><small>INDEX</small><strong>{health?.chunks_indexed || 0} chunks</strong></span></div>
-          <div><ShieldCheck size={18} /><span><small>METHOD</small><strong>Top-1 match</strong></span></div>
+          <div><BarChart3 size={18} /><span><small>Average score</small><strong>{averageScore === null ? "—" : `${averageScore}%`}</strong></span></div>
+          <div><Zap size={18} /><span><small>Passed</small><strong>{completed ? `${passed} / ${completed}` : "—"}</strong></span></div>
+          <div><Database size={18} /><span><small>Index</small><strong>{health?.chunks_indexed || 0} chunks</strong></span></div>
+          <div><ShieldCheck size={18} /><span><small>Method</small><strong>Top-1 match</strong></span></div>
         </div>
       </div>
 
       <div className="evaluation-table">
-        <div className="evaluation-row evaluation-head"><span>GOLDEN QUESTION</span><span>EXPECTED SOURCE</span><span>TOP RESULT</span><span>OUTCOME</span></div>
+        <div className="evaluation-row evaluation-head"><span>Golden question</span><span>Expected source</span><span>Top result</span><span>Outcome</span></div>
         {evaluationCases.map((testCase, index) => {
           const result = results[index];
           return (
             <article className="evaluation-row" key={testCase.question}>
-              <div><small>CASE {String(index + 1).padStart(2, "0")}</small><strong>{testCase.question}</strong></div>
+              <div><small>Case {index + 1}</small><strong>{testCase.question}</strong></div>
               <span>{testCase.expected}</span>
               <span>{result?.actual || "Not run"}{result ? <small>{formatScore(result.topScore)}</small> : null}</span>
               <span className={result ? (result.passed ? "pass" : "review") : "pending"}>
@@ -631,7 +627,7 @@ function SettingsDialog({ topK, onTopK, onClose }) {
   return (
     <div className="dialog-backdrop" onMouseDown={onClose}>
       <section className="settings-dialog" role="dialog" aria-modal="true" aria-label="Retrieval settings" onMouseDown={(event) => event.stopPropagation()}>
-        <header><div><small>RETRIEVAL SETTINGS</small><h2>Keep it legible.</h2></div><IconButton label="Close settings" onClick={onClose}><X size={18} /></IconButton></header>
+        <header><div><small>Retrieval settings</small><h2>Query controls</h2></div><IconButton label="Close settings" onClick={onClose}><X size={18} /></IconButton></header>
         <div className="settings-explainer"><Layers3 size={20} /><p>This project intentionally exposes one query-time control. Chunking and thresholds stay in code so the assessment remains predictable and easy to explain.</p></div>
         <label className="settings-range">
           <span><strong>Top K evidence chunks</strong><small>Maximum candidates retrieved for each question.</small></span>
@@ -639,9 +635,9 @@ function SettingsDialog({ topK, onTopK, onClose }) {
           <input type="range" min="1" max="8" value={topK} onChange={(event) => onTopK(Number(event.target.value))} />
         </label>
         <div className="pipeline-settings">
-          <div><small>CHUNK SIZE</small><strong>200 words</strong><span>fixed at indexing</span></div>
-          <div><small>OVERLAP</small><strong>40 words</strong><span>fixed at indexing</span></div>
-          <div><small>MIN SCORE</small><strong>0.12</strong><span>refusal threshold</span></div>
+          <div><small>Chunk size</small><strong>200 words</strong><span>fixed at indexing</span></div>
+          <div><small>Overlap</small><strong>40 words</strong><span>fixed at indexing</span></div>
+          <div><small>Minimum score</small><strong>0.12</strong><span>refusal threshold</span></div>
         </div>
         <footer><span><ShieldCheck size={15} /> Settings stay in this browser.</span><button type="button" onClick={onClose}>Done <Check size={15} /></button></footer>
       </section>
@@ -890,7 +886,6 @@ export default function App() {
       </main>
       {settingsOpen ? <SettingsDialog topK={topK} onTopK={setTopK} onClose={() => setSettingsOpen(false)} /> : null}
       {notice ? <div className="toast"><Check size={16} />{notice}</div> : null}
-      <div className="edition-mark" aria-hidden="true">LOCAL / EXTRACTIVE / 2026</div>
     </div>
   );
 }

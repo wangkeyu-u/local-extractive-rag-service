@@ -25,6 +25,7 @@ Groundline 是一个面向小型纯文本知识库的 RAG 演示项目。后端�
 - **三视图工作台**：Ask 负责问答，Library 负责语料盘点，Evaluate 负责 Top-1 黄金集评测。
 - **可复现工程链路**：17 个后端测试、前端生产构建、GitHub Actions CI、Docker 后端镜像。
 - **展示友好**：自动初始化索引、浏览器本地查询历史、深浅主题、明确的桌面工作台布局。
+- **桌面证据控制台**：统一无衬线字体、紧凑数据层级、同屏答案与证据轨迹；不提供手机端导航或抽屉。
 
 更详细的界面目标与桌面布局规则见 [docs/interface-plan.md](docs/interface-plan.md)。
 
@@ -225,8 +226,9 @@ CI 在每次 push 和 pull request 上运行 Python 3.12 测试、前端构建�
 │   └── *.txt            # local knowledge corpus
 ├── frontend/
 │   ├── src/App.jsx      # Ask / Library / Evaluate workbench
-│   ├── src/styles.css   # responsive design system
+│   ├── src/styles.css   # desktop interface system and themes
 │   └── vite.config.js   # local API proxy
+├── PRODUCT.md           # product and interface constraints
 ├── tests/test_rag.py
 ├── .github/workflows/ci.yml
 ├── Dockerfile
