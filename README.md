@@ -1,82 +1,35 @@
-# Groundline — 本地抽取式 RAG 工作台
+# Groundline
 
-> 只从本地文档提取答案，把证据、分数和命中词放在结论旁边。无外部 LLM、无付费服务、无数据出站。
->
-> Local-only extractive RAG with inspectable retrieval, cited answers, and zero model calls.
+一个本地运行、证据可追溯的抽取式 RAG 工作台。它只回答 `docs/*.txt` 中能找到的内容，不调用外部大模型，也不会把文档发出这台机器。
 
 [![CI](https://github.com/wangkeyu-u/local-extractive-rag-service/actions/workflows/ci.yml/badge.svg)](https://github.com/wangkeyu-u/local-extractive-rag-service/actions/workflows/ci.yml)
-[![Python 3.10–3.12](https://img.shields.io/badge/Python-3.10%E2%80%933.12-315d88)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-2c7a60)](https://fastapi.tiangolo.com/)
-[![React 19](https://img.shields.io/badge/React-19-17201d)](https://react.dev/)
-[![Local only](https://img.shields.io/badge/data-local%20only-f2633b)](#隐私边界)
+[![Python 3.10-3.12](https://img.shields.io/badge/Python-3.10--3.12-315d88)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-277658)](https://fastapi.tiangolo.com/)
+[![React 19](https://img.shields.io/badge/React-19-222320)](https://react.dev/)
+[![Local only](https://img.shields.io/badge/data-local_only-a95c13)](#隐私与边界)
 
-![Groundline local RAG workbench](docs/assets/readme-hero.png)
+![Groundline retrieval console](docs/assets/readme-hero.png)
 
-Groundline 是一个面向小型纯文本知识库的 RAG 演示项目。后端使用 FastAPI 和 scikit-learn 构建内存 TF-IDF 索引；回答完全由命中文档中的句子抽取而来。前端不只展示答案，还展示每条证据的来源、排名、相关度和精确命中词，并提供资料清单与一组可复现的检索评测。
+Groundline 适合用来理解和演示一条完整但不复杂的 RAG 链路。后端用 TF-IDF 和余弦相似度检索文本片段，再从命中的原文中抽取句子组成答案。前端把答案、引用、相关度、命中词和原始片段放在同一屏，方便检查每个结论从哪里来。
 
-它首先满足仓库内的 L1 RAG assessment 要求，同时把可解释性、可用界面和工程验证补齐。
+## 它能做什么
 
-## 为什么这个版本更完整
+| 工作流 | 实际能力 |
+| --- | --- |
+| 查询 | 返回抽取式答案、置信状态、耗时和可点击引用 |
+| 证据检查 | 展示来源文件、片段编号、排名、相似度和命中词 |
+| 语料管理 | 从界面添加、覆盖、查看和删除 UTF-8 `.txt` 文件 |
+| 索引配置 | 调整分块大小和重叠量，然后真实重建内存索引 |
+| 拒答 | 最高分低于 `0.12` 时返回证据不足，不补写文档外内容 |
+| 检索检查 | 用 4 条内置问题核对预期来源是否排在第一位 |
 
-- **证据优先**：回答内的 `[1]`、`[2]` 引用可以直接定位右侧原文。
-- **检索可解释**：每个片段返回 `rank`、`score`、`matched_terms` 和来源文件。
-- **安全拒答**：最高相关度低于阈值时返回固定的证据不足回答，不继续猜测。
-- **本地且确定**：没有 OpenAI、Anthropic、DeepSeek、Gemini 或其他外部模型调用。
-- **三视图工作台**：Ask 负责问答，Library 负责语料盘点，Evaluate 负责 Top-1 黄金集评测。
-- **可复现工程链路**：17 个后端测试、前端生产构建、GitHub Actions CI、Docker 后端镜像。
-- **展示友好**：自动初始化索引、浏览器本地查询历史、深浅主题、明确的桌面工作台布局。
-- **桌面证据控制台**：统一无衬线字体、紧凑数据层级、同屏答案与证据轨迹；不提供手机端导航或抽屉。
-
-更详细的界面目标与桌面布局规则见 [docs/interface-plan.md](docs/interface-plan.md)。
-
-## 界面信息架构
-
-| 视图 | 要回答的问题 | 核心内容 |
-| --- | --- | --- |
-| **Ask** | “答案是什么，证据在哪里？” | 问题输入、抽取式回答、引用、证据侧栏、查询历史 |
-| **Library** | “索引到底包含什么？” | 文档、字符数、词数、分块数、索引状态 |
-| **Evaluate** | “检索现在可信吗？” | 4 条黄金问题、期望来源、Top-1 结果、通过率 |
-
-## 工作原理
-
-```mermaid
-flowchart LR
-    A[docs/*.txt] --> B[200-word chunks\n40-word overlap]
-    B --> C[TF-IDF\nunigram + bigram]
-    Q[User question] --> D[Cosine similarity]
-    C --> D
-    D --> E{Top score >= 0.12?}
-    E -- No --> F[Insufficient evidence]
-    E -- Yes --> G[Ranked evidence chunks]
-    G --> H[Extract matching sentences]
-    H --> I[Answer with citations]
-```
-
-### 1. Index
-
-`POST /index` 读取 `docs/` 下所有非空 `.txt` 文件，按 200 个词切分并保留 40 个词重叠，随后用带 unigram/bigram 的 TF-IDF 建立内存矩阵。重新索引会先清理旧状态，避免失败后继续使用过期索引。
-
-### 2. Retrieve
-
-`POST /ask` 将问题转换到同一向量空间，计算余弦相似度并返回 Top K。每个结果包含排名、分数和问题与片段之间的精确命中词。
-
-### 3. Answer or refuse
-
-最高分达到 `0.12` 时，服务从强证据片段中挑选与问题词重合最多的句子并追加引用编号；否则返回：
-
-```text
-I do not have enough evidence in the provided documents to answer this question.
-```
+界面只面向桌面端。它采用固定的三栏检索控制台布局，没有手机导航、抽屉或移动端适配。
 
 ## 快速开始
 
-### 环境要求
+需要 Python 3.10 到 3.12、Node.js 20+ 和 npm。
 
-- Python 3.10–3.12（固定的 scikit-learn 1.5.2 在这些版本上有稳定预编译包）
-- Node.js 20+
-- npm 10+
-
-### 1. 启动后端
+先启动 API：
 
 ```bash
 python3.12 -m venv .venv
@@ -85,19 +38,7 @@ pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
-后端地址：`http://127.0.0.1:8000`<br>
-OpenAPI 文档：`http://127.0.0.1:8000/docs`
-
-也可以使用 Makefile：
-
-```bash
-make install
-make run
-```
-
-### 2. 启动前端
-
-打开另一个终端：
+再打开一个终端启动界面：
 
 ```bash
 cd frontend
@@ -105,46 +46,84 @@ npm install
 npm run dev
 ```
 
-前端地址：`http://127.0.0.1:5173`
+打开以下地址：
 
-Vite 会把 `/api/*` 代理到 `http://127.0.0.1:8000/*`。首次连接后，界面会在索引未就绪时自动调用一次 `POST /index`。
+- 工作台: [http://127.0.0.1:5174](http://127.0.0.1:5174)
+- OpenAPI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
+Vite 会把 `/api/*` 代理到本地 FastAPI。首次打开时，如果 `docs/` 中已有文本但索引为空，界面会自动完成第一次构建。
+
+也可以使用 Makefile：
+
+```bash
+make install
+make run
+
+# 另一个终端
+make frontend-install
+make frontend-dev
+```
+
+## 使用方式
+
+在 Corpus 页面点击 `Add .txt` 可以导入文本。文件会写入本地 `docs/`，随后立即重建索引。选择文件后可以查看原文、词数和分块数，也可以删除文件。
+
+在 Query 页面输入问题并运行检索。答案中的数字引用会选中右侧对应证据。右侧面板显示完整片段、相似度和命中词，方便判断答案是否真的被文档支持。
+
+设置面板中的 `Top K` 只影响查询。`Chunk size` 和 `Overlap` 会触发重新索引，健康接口会返回当前实际生效的参数。
+
+Checks 页面包含一个很小的黄金集，用来快速发现 demo 语料的检索退化。它不是通用准确率测试，也不代表更大数据集上的表现。
+
+## 检索链路
+
+```mermaid
+flowchart LR
+    A[Local txt files] --> B[Word chunks]
+    B --> C[TF-IDF unigrams and bigrams]
+    Q[Question] --> D[Cosine similarity]
+    C --> D
+    D --> E{Top score at least 0.12}
+    E -- No --> F[Insufficient evidence]
+    E -- Yes --> G[Ranked passages]
+    G --> H[Extract matching sentences]
+    H --> I[Answer with citations]
+```
+
+默认分块大小是 200 个词，重叠 40 个词。索引保存在当前 Python 进程内，服务重启后需要重新构建。重新构建失败时会清空旧索引，避免继续使用已经过期的结果。
 
 ## API
 
-| Method | Endpoint | 作用 |
+| Method | Endpoint | 用途 |
 | --- | --- | --- |
-| `GET` | `/` | 服务版本与端点概览 |
-| `POST` | `/index` | 读取本地文档并重建内存索引 |
+| `GET` | `/health` | API 状态、索引状态和当前参数 |
+| `POST` | `/index` | 使用指定分块参数重建索引 |
 | `POST` | `/ask` | 检索证据并返回抽取式答案 |
-| `GET` | `/documents` | 返回语料文件及字符、词、分块统计 |
-| `GET` | `/health` | 返回 API、索引和最近索引时间 |
-| `GET` | `/docs` | FastAPI 自动生成的 OpenAPI UI |
+| `GET` | `/documents` | 列出语料及统计信息 |
+| `GET` | `/documents/{source}` | 读取一个文档的原文与统计 |
+| `POST` | `/documents` | 新增或覆盖一个 `.txt` 文档 |
+| `DELETE` | `/documents/{source}` | 删除文档并重建剩余索引 |
 
-### 建立索引
+重建索引：
 
 ```bash
-curl -X POST http://127.0.0.1:8000/index
+curl -X POST http://127.0.0.1:8000/index \
+  -H "Content-Type: application/json" \
+  -d '{"chunk_size":200,"chunk_overlap":40}'
 ```
 
-```json
-{
-  "status": "indexed",
-  "documents_indexed": 5,
-  "chunks_indexed": 5,
-  "sources": [
-    "privacy_policy.txt",
-    "product_overview.txt",
-    "refund_policy.txt",
-    "shipping_policy.txt",
-    "support_policy.txt"
-  ],
-  "chunk_size": 200,
-  "chunk_overlap": 40,
-  "indexed_at": "2026-07-16T07:14:16.000000+00:00"
-}
+新增文档：
+
+```bash
+curl -X POST http://127.0.0.1:8000/documents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source":"release_notes.txt",
+    "text":"Groundline answers only from local evidence.",
+    "reindex":true
+  }'
 ```
 
-### 提问
+提问：
 
 ```bash
 curl -X POST http://127.0.0.1:8000/ask \
@@ -152,122 +131,47 @@ curl -X POST http://127.0.0.1:8000/ask \
   -d '{"question":"What is the refund policy?","top_k":3}'
 ```
 
-```json
-{
-  "answer": "Customers can request a refund within 30 days of purchase. [1]",
-  "confidence": "medium",
-  "retrieval_ms": 0.55,
-  "query_terms": ["policy", "refund"],
-  "chunks": [
-    {
-      "source": "refund_policy.txt",
-      "chunk_id": 0,
-      "rank": 1,
-      "score": 0.1831,
-      "matched_terms": ["refund"],
-      "text": "Customers can request a refund within 30 days of purchase..."
-    }
-  ],
-  "sources": [
-    {
-      "source": "refund_policy.txt",
-      "chunk_id": 0,
-      "rank": 1,
-      "score": 0.1831,
-      "matched_terms": ["refund"],
-      "text": "Customers can request a refund within 30 days of purchase..."
-    }
-  ]
-}
-```
+一个证据片段包含 `source`、`chunk_id`、`rank`、`score`、`matched_terms` 和原文。完整请求与响应模型可以直接在 OpenAPI 页面查看。
 
-`sources` 保留为 `chunks` 的兼容别名；新客户端可以直接使用 `chunks`。
-
-## 错误与边界行为
-
-| 场景 | 行为 |
-| --- | --- |
-| 索引前提问 | `400` — `no index found` |
-| 空问题 | `400` — `empty question` |
-| 缺少 `docs/` | `400` — `docs folder not found` |
-| `docs/` 没有 `.txt` | `400` — `no text documents found in docs folder` |
-| 所有文档为空 | `400` — `documents are empty; no index can be built` |
-| 文档无可检索词 | `400` — `documents do not contain searchable text; no index can be built` |
-| 证据低于阈值 | `200`，`confidence=insufficient`，证据数组为空 |
-
-## 测试与质量检查
+## 验证
 
 ```bash
-# Backend — 17 tests
-.venv/bin/python -m pytest -q
-
-# Frontend production build
-cd frontend && npm run build
-
-# Both through Make
 make check
 ```
 
-测试覆盖分块重叠、索引、文档元数据、健康状态、相关查询、拒答、输入校验、失败重建清理、检索排名、置信度阈值与 API 响应结构。
+当前检查包括 24 个后端测试、Vite 生产构建和依赖审计。测试覆盖分块、索引配置、文档增删改读、路径校验、检索排名、引用、拒答和失败重建。
 
-CI 在每次 push 和 pull request 上运行 Python 3.12 测试、前端构建与高危依赖审计。
+GitHub Actions 会在 push 和 pull request 上运行后端测试、前端构建与完整依赖审计。
 
 ## 项目结构
 
 ```text
 .
 ├── app/
-│   ├── main.py          # FastAPI routes and CORS
-│   ├── rag.py           # chunking, TF-IDF, retrieval, extraction
+│   ├── main.py          # FastAPI routes
+│   ├── rag.py           # indexing, retrieval, extraction, corpus writes
 │   └── schemas.py       # request and response models
 ├── docs/
-│   ├── assets/          # README preview
+│   ├── assets/          # GitHub preview
 │   ├── interface-plan.md
-│   └── *.txt            # local knowledge corpus
+│   └── *.txt            # local corpus
 ├── frontend/
-│   ├── src/App.jsx      # Ask / Library / Evaluate workbench
-│   ├── src/styles.css   # desktop interface system and themes
-│   └── vite.config.js   # local API proxy
-├── PRODUCT.md           # product and interface constraints
+│   ├── src/App.jsx      # query, corpus, checks, dialogs
+│   ├── src/styles.css   # desktop visual system
+│   └── vite.config.js   # local API proxy on port 5174
 ├── tests/test_rag.py
-├── .github/workflows/ci.yml
+├── PRODUCT.md
 ├── Dockerfile
-├── Makefile
-└── requirements.txt
+└── Makefile
 ```
 
-## Docker
+## 隐私与边界
 
-当前镜像刻意只打包评测要求中的 Python API：
+- 文档和索引都在本机。前端只请求 `127.0.0.1:8000`，查询历史只保存在浏览器本地存储。
+- 没有账号、遥测、云向量库或外部模型请求。
+- TF-IDF 依赖词汇重合，不擅长处理同义改写和跨语言查询。
+- 抽取式回答不会生成文档外事实，但仍需要用户检查引用是否足以支持结论。
+- 内存索引适合小型语料和演示，不适合多租户、大规模持久化检索或权限隔离。
+- 文档名只允许字母、数字、点、短横线和下划线，并且必须以 `.txt` 结尾。单个文档正文最多 1,000,000 个字符。
 
-```bash
-docker build -t local-extractive-rag-service .
-docker run --rm -p 8000:8000 local-extractive-rag-service
-```
-
-然后访问 `http://127.0.0.1:8000/docs`。
-
-## 隐私边界
-
-- 后端只读取本机 `docs/*.txt`。
-- 检索矩阵只存在于当前进程内，服务重启后需要重新索引。
-- 前端只向本地 FastAPI 发送问题；查询历史仅存于浏览器 `localStorage`。
-- 没有遥测、账号系统、云向量库或外部模型请求。
-
-## 设计取舍
-
-| 选择 | 优点 | 局限 |
-| --- | --- | --- |
-| TF-IDF | 快、确定、容易解释 | 不理解真正的语义改写 |
-| unigram + bigram | 保留短语信息，仍然轻量 | 词汇不重合时召回较弱 |
-| 抽取式回答 | 不会生成文档外事实 | 文风不如生成模型自然 |
-| 固定阈值 | 拒答行为清晰可测试 | 语料变大后需要重新标定 |
-| 内存索引 | 零基础设施、适合演示 | 无持久化、无横向扩展 |
-| 只读语料目录 | 边界简单、安全 | 前端不直接上传或删除文件 |
-
-## 下一步
-
-- 用更大的标注集校准 `MIN_SCORE`，报告 Precision@K / Recall@K。
-- 在仍保持本地的前提下增加 BM25 或本地 embedding 作为可选检索器。
-- 为大语料增加持久化索引与增量更新。
-- 在真正的多人场景中补认证、文档级权限与审计日志。
+完整的产品约束见 [PRODUCT.md](PRODUCT.md)，界面结构与交互说明见 [docs/interface-plan.md](docs/interface-plan.md)。

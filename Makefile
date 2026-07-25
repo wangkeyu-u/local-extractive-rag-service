@@ -7,7 +7,7 @@ API_HOST ?= 127.0.0.1
 API_PORT ?= 8000
 PYTHON ?= python3
 
-.PHONY: install test run frontend-install frontend-dev frontend-build check docker-build
+.PHONY: install test run frontend-install frontend-dev frontend-build frontend-audit check docker-build
 
 install:
 	$(PYTHON) -m venv .venv
@@ -28,7 +28,10 @@ frontend-dev:
 frontend-build:
 	cd frontend && npm run build
 
-check: test frontend-build
+frontend-audit:
+	cd frontend && npm audit --audit-level=low
+
+check: test frontend-build frontend-audit
 
 docker-build:
 	docker build -t local-extractive-rag-service .

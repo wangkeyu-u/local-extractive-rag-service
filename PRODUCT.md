@@ -1,55 +1,50 @@
 # Groundline Product Context
 
-## Product
+## Product definition
 
-- **Name:** Groundline
-- **Category:** Desktop developer/reviewer tool
-- **Purpose:** Let a user query a small local text corpus and verify every extractive answer against ranked source evidence.
-- **Primary success condition:** A user can tell whether the index is ready, get a supported answer or a safe refusal, and inspect the exact source, score, rank, and matched terms without leaving the workspace.
+Groundline is a desktop retrieval console for small local text collections. It helps a user ask a question, see an extractive answer or refusal, and inspect the exact evidence used.
+
+The product is successful when a reviewer can answer four questions without leaving the workspace:
+
+1. Is the local index ready?
+2. Which documents are included?
+3. Why did this passage rank first?
+4. Does the answer stay inside the retrieved text?
 
 ## Users
 
-- **Reviewer or interviewer:** needs to understand the retrieval pipeline, privacy boundary, and failure behavior quickly.
-- **Developer:** needs retrieval diagnostics such as ranks, similarity scores, matched terms, chunk IDs, latency, and deterministic evaluation cases.
-- **Knowledge user:** needs a concise answer with citations and an obvious path to the underlying text.
+| User | Need |
+| --- | --- |
+| Reviewer | Understand the retrieval and privacy boundaries quickly |
+| Developer | Inspect scores, ranks, matched terms, chunks, and latency |
+| Knowledge user | Read a concise answer and verify its citations |
 
-## Product Principles
+## Product rules
 
-1. Evidence is the primary output; the answer is a readable view over that evidence.
-2. Local-only and extractive behavior must stay visible and unambiguous.
-3. Retrieval uncertainty must be shown as a confidence state or refusal, never hidden behind conversational polish.
-4. Dense technical information should be scannable, not decorative.
-5. The supported surface is desktop only; no phone navigation, mobile drawer, or mobile-first interaction model.
+1. Evidence is the primary output. The answer is a readable view over that evidence.
+2. Local-only and extractive behavior must remain visible.
+3. Weak retrieval produces a clear refusal, not conversational filler.
+4. Controls shown in the interface must change the real backend behavior.
+5. Corpus writes require safe plain filenames and UTF-8 text.
+6. The supported surface is desktop only.
 
-## Brand and Voice
+## Core workflows
 
-- **Personality:** rigorous, calm, transparent, precise.
-- **Visual register:** a modern evidence console or precision lab, with cool neutral surfaces, a dark navigation rail, and a restrained cobalt action color.
-- **Interface copy:** direct, plain language; avoid marketing claims, chatbot persona, and self-congratulatory design commentary.
-- **Typography:** one practical sans-serif family for controls, data, headings, and reading text. Use weight, size, spacing, and layout—not ornamental type—to create hierarchy.
+- Query: ask a question, adjust Top K, inspect the answer, open a citation, and revisit local history.
+- Corpus: add, replace, read, filter, and delete `.txt` sources. Every mutation can rebuild the index.
+- Index: set chunk size and overlap, rebuild, and verify active values through health metadata.
+- Checks: run four transparent Top-1 source expectations against the included demo corpus.
 
-## Core Information Architecture
+## Voice and visual direction
 
-- **Ask:** question composer, answer or refusal, answer diagnostics, ranked evidence, recent local query history.
-- **Library:** indexed document inventory and truthful instructions for changing the corpus.
-- **Evaluate:** transparent Top-1 golden-set checks with expected and observed sources.
-- **Persistent navigation:** corpus identity, API/index state, reindex action, and local-only privacy statement.
+The interface should feel like a forensic retrieval console: quiet, precise, and operational. A graphite shell, thin structural dividers, amber signal color, IBM Plex Sans, and IBM Plex Mono create hierarchy without decorative effects.
 
-## Interaction and Accessibility
+Interface copy uses short, literal language. It avoids assistant personas, marketing claims, fake model controls, and unsupported accuracy language.
 
-- Keyboard-visible focus on all interactive controls.
-- Enter submits; Shift+Enter inserts a line break.
-- Cmd/Ctrl + 1/2/3 switches between primary views.
-- Color is never the only carrier of state.
-- Honor `prefers-reduced-motion`.
-- Aim for WCAG AA contrast in default and dark themes.
+## Boundaries
 
-## Anti-references
-
-- Generic AI chat bubbles, glowing model avatars, prompt-gallery cards, or assistant persona language.
-- Beige/parchment editorial landing pages and oversized display headlines.
-- Glassmorphism, neon terminal styling, decorative gradients, striped stamps, excessive pills, and side-stripe selected states.
-- Repeated uppercase eyebrow labels, numbered marketing sections, and hero metric templates.
-- Fake upload UI, model selectors, or editable settings that the backend does not support.
-- Mobile navigation, hamburger menus, bottom sheets, and phone-specific responsive behavior.
-
+- No external LLM, embedding API, telemetry, auth, or cloud store.
+- No semantic guarantee beyond TF-IDF word and phrase overlap.
+- No persistent vector index or incremental indexing.
+- No phone layout, hamburger navigation, mobile drawer, or touch-first workflow.
+- The four-case check is a regression signal for the included corpus, not a benchmark.

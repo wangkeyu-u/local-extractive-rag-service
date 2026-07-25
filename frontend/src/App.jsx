@@ -1,23 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
-  BarChart3,
   BookOpen,
   Check,
   ChevronRight,
   CircleAlert,
-  Clipboard,
+  ClipboardCheck,
   Clock3,
   Copy,
-  Database,
+  FilePlus2,
   FileSearch,
   FlaskConical,
   Gauge,
   History,
-  Layers3,
   Library,
   Loader2,
-  MessageSquare,
+  MessageSquareText,
   Moon,
   PanelRight,
   RefreshCw,
@@ -25,13 +23,13 @@ import {
   Settings2,
   ShieldCheck,
   Sun,
-  Terminal,
+  Trash2,
   X,
-  Zap,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 const HISTORY_KEY = "groundline.query-history";
+const THEME_KEY = "groundline.theme";
 
 const exampleQuestions = [
   "What is the refund policy?",
@@ -47,10 +45,10 @@ const evaluationCases = [
   { question: "What is AquaNote?", expected: "product_overview.txt" },
 ];
 
-const navItems = [
-  { id: "ask", label: "Ask", hint: "⌘ 1", icon: MessageSquare },
-  { id: "library", label: "Library", hint: "⌘ 2", icon: Library },
-  { id: "evaluate", label: "Evaluate", hint: "⌘ 3", icon: FlaskConical },
+const navigation = [
+  { id: "ask", label: "Query", shortcut: "⌘1", icon: MessageSquareText },
+  { id: "library", label: "Corpus", shortcut: "⌘2", icon: Library },
+  { id: "evaluate", label: "Checks", shortcut: "⌘3", icon: FlaskConical },
 ];
 
 function readHistory() {
@@ -65,20 +63,20 @@ function saveHistory(history) {
   try {
     window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 12)));
   } catch {
-    // The app still works when browser storage is unavailable.
+    // History is optional when browser storage is unavailable.
   }
 }
 
-function formatScore(score) {
-  return `${Math.round((score || 0) * 100)}%`;
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString();
 }
 
-function formatNumber(number) {
-  return Number(number || 0).toLocaleString();
+function formatScore(value) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
 }
 
-function formatTime(value) {
-  if (!value) return "Not indexed";
+function formatDate(value) {
+  if (!value) return "Never";
   return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
@@ -90,6 +88,7 @@ function formatTime(value) {
 async function readApiError(response) {
   try {
     const payload = await response.json();
+    if (Array.isArray(payload.detail)) return payload.detail[0]?.msg || "Request failed.";
     return payload.detail || payload.message || "Request failed.";
   } catch {
     return "Request failed.";
@@ -102,10 +101,10 @@ async function api(path, options) {
   return response.json();
 }
 
-function IconButton({ label, children, active = false, onClick }) {
+function IconButton({ label, active = false, onClick, children, danger = false }) {
   return (
     <button
-      className={`icon-button ${active ? "is-active" : ""}`}
+      className={`icon-button ${active ? "is-active" : ""} ${danger ? "is-danger" : ""}`}
       type="button"
       onClick={onClick}
       aria-label={label}
@@ -116,309 +115,184 @@ function IconButton({ label, children, active = false, onClick }) {
   );
 }
 
-function ConfidenceBadge({ confidence }) {
-  const labels = {
+function Status({ health }) {
+  const online = Boolean(health);
+  const ready = Boolean(health?.index_ready);
+  return (
+    <span className={`status-label ${online ? "is-online" : ""} ${ready ? "is-ready" : ""}`}>
+      <i />
+      {!online ? "API offline" : ready ? "Index ready" : "Index empty"}
+    </span>
+  );
+}
+
+function Confidence({ value }) {
+  const label = {
     high: "High confidence",
     medium: "Medium confidence",
     low: "Low confidence",
     insufficient: "Insufficient evidence",
-  };
-  return (
-    <span className={`confidence-badge ${confidence || "idle"}`}>
-      <i />
-      {labels[confidence] || "Awaiting query"}
-    </span>
-  );
+  }[value] || "Not run";
+  return <span className={`confidence ${value || "idle"}`}><i />{label}</span>;
 }
 
 function AnswerText({ answer, evidence, onCitation }) {
   if (!answer) return null;
   return answer.split(/(\[\d+\])/g).map((part, index) => {
     const match = part.match(/^\[(\d+)\]$/);
-    const chunk = match ? evidence[Number(match[1]) - 1] : null;
-    return chunk ? (
+    const source = match ? evidence[Number(match[1]) - 1] : null;
+    return source ? (
       <button
         className="citation"
         type="button"
         key={`${part}-${index}`}
-        onClick={() => onCitation(chunk)}
+        onClick={() => onCitation(source)}
       >
         {match[1]}
       </button>
-    ) : (
-      <span key={`${part}-${index}`}>{part}</span>
-    );
+    ) : <span key={`${part}-${index}`}>{part}</span>;
   });
 }
 
-function HighlightedText({ text, terms }) {
-  const normalizedTerms = [...new Set(terms || [])].filter(Boolean);
-  if (!normalizedTerms.length) return text;
-  const escaped = normalizedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+function Highlight({ text, terms }) {
+  const cleanTerms = [...new Set(terms || [])].filter(Boolean);
+  if (!cleanTerms.length) return text;
+  const escaped = cleanTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const pattern = new RegExp(`(${escaped.join("|")})`, "gi");
-  return text.split(pattern).map((part, index) =>
-    normalizedTerms.some((term) => term.toLowerCase() === part.toLowerCase()) ? (
-      <mark key={`${part}-${index}`}>{part}</mark>
-    ) : (
-      <span key={`${part}-${index}`}>{part}</span>
-    ),
-  );
+  return text.split(pattern).map((part, index) => (
+    cleanTerms.some((term) => term.toLowerCase() === part.toLowerCase())
+      ? <mark key={`${part}-${index}`}>{part}</mark>
+      : <span key={`${part}-${index}`}>{part}</span>
+  ));
 }
 
-function Sidebar({
-  activeView,
-  health,
-  documents,
-  onNavigate,
-  onReindex,
-  isIndexing,
-}) {
+function Sidebar({ activeView, documents, health, onNavigate, onSelectDocument }) {
   return (
     <aside className="sidebar">
-      <div className="brand-row">
-        <button className="brand" type="button" onClick={() => onNavigate("ask")} aria-label="Open Ask workspace" title="Groundline">
-          <span className="brand-symbol" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span>
-            <strong>GROUNDLINE</strong>
-            <small>Evidence workspace</small>
-          </span>
-        </button>
+      <button className="brand" type="button" onClick={() => onNavigate("ask")}>
+        <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
+        <span><strong>GROUNDLINE</strong><small>Retrieval console</small></span>
+      </button>
+
+      <div className="corpus-switcher">
+        <span className="corpus-icon">AQ</span>
+        <span><small>ACTIVE CORPUS</small><strong>docs / local</strong></span>
+        <ChevronRight size={15} />
       </div>
 
-      <div className="workspace-card">
-        <span className="workspace-monogram">AQ</span>
-        <span>
-          <small>Active corpus</small>
-          <strong>AquaNote policies</strong>
-        </span>
-        <ChevronRight size={16} />
-      </div>
-
-      <nav className="primary-nav" aria-label="Primary navigation">
-        <p>Workspace</p>
-        {navItems.map((item) => {
+      <nav className="sidebar-nav" aria-label="Workspace navigation">
+        <p>WORKSPACE</p>
+        {navigation.map((item) => {
           const Icon = item.icon;
           return (
             <button
               type="button"
-              key={item.id}
               className={activeView === item.id ? "is-active" : ""}
+              key={item.id}
               onClick={() => onNavigate(item.id)}
-              aria-label={item.label}
-              title={item.label}
             >
-              <Icon size={18} />
+              <Icon size={16} />
               <span>{item.label}</span>
-              <small>{item.hint}</small>
+              <small>{item.shortcut}</small>
             </button>
           );
         })}
       </nav>
 
-      <section className="index-card">
-        <div className="index-card-heading">
-          <span className={health?.index_ready ? "status-dot online" : "status-dot"} />
-          <span>{health ? "Local API online" : "API offline"}</span>
+      <section className="source-rail">
+        <header><span>SOURCES</span><small>{documents.length}</small></header>
+        <div>
+          {documents.slice(0, 6).map((document) => (
+            <button type="button" key={document.source} onClick={() => onSelectDocument(document.source)}>
+              <span>TXT</span><strong>{document.source}</strong>
+            </button>
+          ))}
+          {!documents.length ? <p>No text files found.</p> : null}
         </div>
-        <strong>{health?.index_ready ? "Evidence is ready." : "Index required."}</strong>
-        <p>
-          {health
-            ? `${health.documents_indexed || documents.length} documents · ${health.chunks_indexed} chunks`
-            : "Start FastAPI on port 8000 to connect the workspace."}
-        </p>
-        <button type="button" onClick={onReindex} disabled={isIndexing || !health}>
-          {isIndexing ? <Loader2 className="spin" size={15} /> : <RefreshCw size={15} />}
-          {isIndexing ? "Building index…" : "Rebuild local index"}
-        </button>
       </section>
 
-      <div className="privacy-note">
-        <ShieldCheck size={18} />
-        <span>
-          <strong>Local and extractive</strong>
-          <small>Documents never leave this machine.</small>
-        </span>
-      </div>
-
-      <div className="sidebar-footer">
-        <Terminal size={15} />
-        <span>FastAPI · TF-IDF · Extractive</span>
+      <div className="system-readout">
+        <div><Status health={health} /><span>LOCAL</span></div>
+        <dl>
+          <div><dt>documents</dt><dd>{health?.documents_indexed || 0}</dd></div>
+          <div><dt>chunks</dt><dd>{health?.chunks_indexed || 0}</dd></div>
+          <div><dt>method</dt><dd>tfidf</dd></div>
+        </dl>
+        <p><ShieldCheck size={14} /> No model or network call</p>
       </div>
     </aside>
   );
 }
 
-function Topbar({
-  activeView,
-  theme,
-  evidenceOpen,
-  onTheme,
-  onEvidence,
-  onSettings,
-}) {
+function Topbar({ activeView, health, theme, evidenceOpen, onTheme, onSettings, onEvidence }) {
   const titles = {
-    ask: ["Ask", "Evidence workspace"],
-    library: ["Library", "Indexed material"],
-    evaluate: ["Evaluate", "Retrieval checks"],
+    ask: ["QUERY", "New retrieval run"],
+    library: ["CORPUS", "Source manager"],
+    evaluate: ["CHECKS", "Golden set"],
   };
   return (
     <header className="topbar">
-      <div className="topbar-title">
-        <span>{titles[activeView][0]}</span>
-        <i>/</i>
-        <strong>{titles[activeView][1]}</strong>
-      </div>
+      <div className="breadcrumb"><span>{titles[activeView][0]}</span><i>/</i><strong>{titles[activeView][1]}</strong></div>
       <div className="topbar-actions">
-        <span className="local-pill"><span /> Local only</span>
-        <IconButton label="Retrieval settings" onClick={onSettings}>
-          <Settings2 size={17} />
-        </IconButton>
-        <IconButton label={theme === "light" ? "Use dark theme" : "Use light theme"} onClick={onTheme}>
-          {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
+        <Status health={health} />
+        <span className="command-key">⌘ K</span>
+        <IconButton label="Retrieval settings" onClick={onSettings}><Settings2 size={16} /></IconButton>
+        <IconButton label={theme === "dark" ? "Use light theme" : "Use dark theme"} onClick={onTheme}>
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
         </IconButton>
         {activeView === "ask" ? (
-          <IconButton label="Toggle evidence panel" active={evidenceOpen} onClick={onEvidence}>
-            <PanelRight size={17} />
-          </IconButton>
+          <IconButton label="Toggle evidence inspector" active={evidenceOpen} onClick={onEvidence}><PanelRight size={16} /></IconButton>
         ) : null}
       </div>
     </header>
   );
 }
 
-function EmptyEvidence() {
-  return (
-    <div className="empty-evidence">
-      <div className="retrieval-orbit">
-        <FileSearch size={23} />
-      </div>
-      <strong>No evidence yet</strong>
-      <p>Run a query to inspect ranked chunks, matched terms, and source metadata.</p>
-      <div className="mini-pipeline">
-        <span>Query</span><i /><span>Rank</span><i /><span>Inspect</span>
-      </div>
-    </div>
-  );
-}
-
-function EvidencePanel({ open, evidence, selected, onSelect, onClose }) {
-  return (
-    <aside className={`evidence-panel ${open ? "is-open" : ""}`}>
-      <div className="evidence-header">
-        <div>
-          <small>Retrieval trace</small>
-          <strong>Evidence</strong>
-        </div>
-        <IconButton label="Close evidence" onClick={onClose}><X size={17} /></IconButton>
-      </div>
-      <div className="evidence-tabs">
-        <button className="is-active" type="button">Evidence <span>{evidence.length}</span></button>
-        <span>{evidence.length ? `${new Set(evidence.map((item) => item.source)).size} sources` : "Waiting"}</span>
-      </div>
-      <div className="evidence-scroll">
-        {!evidence.length ? (
-          <EmptyEvidence />
-        ) : (
-          <>
-            <div className="evidence-summary">
-              <div>
-                <small>Top similarity</small>
-                <strong>{formatScore(evidence[0].score)}</strong>
-              </div>
-              <p>{evidence.length} grounded chunks ranked by local TF-IDF similarity.</p>
-            </div>
-            <div className="evidence-list">
-              {evidence.map((chunk, index) => (
-                <button
-                  type="button"
-                  key={`${chunk.source}-${chunk.chunk_id}`}
-                  className={`evidence-card ${selected === chunk ? "is-selected" : ""}`}
-                  onClick={() => onSelect(chunk)}
-                >
-                  <header>
-                    <span>{index + 1}</span>
-                    <strong>{chunk.source}</strong>
-                    <em>{formatScore(chunk.score)}</em>
-                  </header>
-                  <p><HighlightedText text={chunk.text} terms={chunk.matched_terms} /></p>
-                  <footer>
-                    <span>Chunk {chunk.chunk_id + 1}</span>
-                    <span>Rank {chunk.rank}</span>
-                    <ArrowRight size={14} />
-                  </footer>
-                  {selected === chunk && chunk.matched_terms?.length ? (
-                    <div className="matched-terms">
-                      {chunk.matched_terms.map((term) => <span key={term}>{term}</span>)}
-                    </div>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    </aside>
-  );
-}
-
-function AskView({
+function QueryWorkspace({
   question,
   topK,
   health,
   documents,
-  answerState,
-  responseMs,
+  answer,
+  elapsed,
   history,
   isAsking,
+  evidenceOpen,
+  selectedEvidence,
   onQuestion,
   onTopK,
   onAsk,
   onExample,
   onCitation,
-  onCopy,
+  onSelectEvidence,
   onHistory,
+  onCopy,
 }) {
-  const evidence = answerState?.chunks || answerState?.sources || [];
-  const totalWords = documents.reduce((sum, document) => sum + document.words, 0);
+  const evidence = answer?.chunks || answer?.sources || [];
+  const wordCount = documents.reduce((total, document) => total + document.words, 0);
   return (
-    <section className="ask-view">
-      <div className="ask-scroll">
-        <div className="ask-container">
-          <section className="ask-hero">
-            <div className="hero-row">
-              <div>
-                <h1>Ask the local corpus</h1>
-                <p>Retrieve an extractive answer, then verify it against the ranked source text.</p>
-              </div>
-              <div className={`workspace-readiness ${health?.index_ready ? "is-ready" : ""}`}>
-                <span />
-                <div>
-                  <strong>{health?.index_ready ? "Index ready" : "Index pending"}</strong>
-                  <small>{health ? `${documents.length} sources · ${health.chunks_indexed || 0} chunks` : "Waiting for local API"}</small>
-                </div>
-              </div>
-            </div>
-            <div className="metric-strip">
-              <div><small>Sources</small><strong>{documents.length}</strong></div>
-              <div><small>Chunks</small><strong>{health?.chunks_indexed || 0}</strong></div>
-              <div><small>Corpus</small><strong>{formatNumber(totalWords)} words</strong></div>
-              <div className="metric-promise"><ShieldCheck size={17} /><span><strong>No outbound calls</strong><small>TF-IDF · extractive</small></span></div>
-            </div>
+    <div className={`query-layout ${evidenceOpen ? "with-inspector" : ""}`}>
+      <main className="query-canvas">
+        <div className="query-scroll">
+          <section className="query-intro">
+            <div className="eyebrow"><span>RUN / NEW</span><i />Local extractive retrieval</div>
+            <h1>Interrogate the corpus.</h1>
+            <p>Ask a narrow question. Groundline ranks the local text, extracts matching sentences, and leaves the evidence visible.</p>
+            <dl>
+              <div><dt>SOURCES</dt><dd>{documents.length}</dd></div>
+              <div><dt>WORDS</dt><dd>{formatNumber(wordCount)}</dd></div>
+              <div><dt>CHUNKS</dt><dd>{health?.chunks_indexed || 0}</dd></div>
+              <div><dt>INDEXED</dt><dd>{formatDate(health?.indexed_at)}</dd></div>
+            </dl>
           </section>
 
           <form className="query-composer" onSubmit={onAsk}>
-            <div className="composer-label">
-              <span><MessageSquare size={17} /> Question</span>
-              <span className={health?.index_ready ? "ready" : ""}><i />{health?.index_ready ? "Ready" : "Pending"}</span>
-            </div>
+            <div className="composer-topline"><label htmlFor="question">QUESTION</label><span>ENTER TO RUN</span></div>
             <textarea
+              id="question"
               value={question}
               onChange={(event) => onQuestion(event.target.value)}
-              placeholder="Ask something covered by docs/*.txt"
+              placeholder="Ask something that should be in docs/*.txt"
               rows={3}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
@@ -427,219 +301,251 @@ function AskView({
                 }
               }}
             />
-            <div className="composer-footer">
-              <div className="top-k-control">
-                <Settings2 size={15} />
-                <span>TOP K</span>
-                <input type="range" min="1" max="8" value={topK} onChange={(event) => onTopK(Number(event.target.value))} />
-                <strong>{topK}</strong>
-              </div>
-              <span className="keyboard-hint">Enter to retrieve · Shift+Enter for a new line</span>
-              <button className="ask-button" type="submit" disabled={isAsking || !question.trim() || !health?.index_ready}>
-                {isAsking ? <Loader2 className="spin" size={17} /> : <Search size={17} />}
-                {isAsking ? "Searching…" : "Retrieve answer"}
+            <footer>
+              <label className="top-k"><span>TOP K</span><input type="range" min="1" max="8" value={topK} onChange={(event) => onTopK(Number(event.target.value))} /><strong>{topK}</strong></label>
+              <button type="submit" disabled={isAsking || !question.trim() || !health?.index_ready}>
+                {isAsking ? <Loader2 className="spin" size={16} /> : <Search size={16} />}
+                {isAsking ? "Running" : "Run retrieval"}
               </button>
-            </div>
+            </footer>
           </form>
 
-          <div className="example-row">
-            <span>Examples</span>
-            {exampleQuestions.map((example) => (
-              <button type="button" key={example} onClick={() => onExample(example)}>
-                {example}<ArrowRight size={14} />
-              </button>
-            ))}
+          <div className="prompt-strip">
+            <span>TRY</span>
+            {exampleQuestions.map((example) => <button type="button" key={example} onClick={() => onExample(example)}>{example}<ArrowRight size={13} /></button>)}
           </div>
 
-          <section className={`answer-card ${answerState ? "has-answer" : ""}`} aria-live="polite">
-            <header>
-              <div><FileSearch size={18} /><span>Extractive answer</span></div>
-              <div className="answer-actions">
-                <ConfidenceBadge confidence={answerState?.confidence} />
-                {answerState ? <IconButton label="Copy answer" onClick={onCopy}><Copy size={16} /></IconButton> : null}
-              </div>
+          <section className="run-panel" aria-live="polite">
+            <header className="run-header">
+              <div><span className="run-number">01</span><span><small>OUTPUT</small><strong>Extractive answer</strong></span></div>
+              <div>{answer ? <Confidence value={answer.confidence} /> : <span className="awaiting">AWAITING RUN</span>}{answer ? <IconButton label="Copy answer" onClick={onCopy}><Copy size={15} /></IconButton> : null}</div>
             </header>
-            {answerState ? (
+            {answer ? (
               <>
-                <div className="answer-copy">
-                  <AnswerText answer={answerState.answer} evidence={evidence} onCitation={onCitation} />
+                <div className="answer-body"><AnswerText answer={answer.answer} evidence={evidence} onCitation={onCitation} /></div>
+                <div className="trace-line">
+                  <span><i>01</i> tokenize <b>{answer.query_terms?.length || 0} terms</b></span>
+                  <em />
+                  <span><i>02</i> vectorize <b>TF-IDF</b></span>
+                  <em />
+                  <span><i>03</i> rank <b>{answer.retrieval_ms} ms</b></span>
+                  <em />
+                  <span><i>04</i> extract <b>{evidence.length} chunks</b></span>
                 </div>
-                <footer>
-                  <span><Clock3 size={14} /> {responseMs} ms round trip</span>
-                  <span><Gauge size={14} /> {answerState.retrieval_ms} ms retrieval</span>
-                  <span><BookOpen size={14} /> {evidence.length} evidence chunks</span>
-                  <span><ShieldCheck size={14} /> extractive only</span>
-                </footer>
+                <footer className="run-meta"><span><Clock3 size={13} /> {elapsed} ms round trip</span><span><Gauge size={13} /> threshold {health?.min_score ?? 0.12}</span><span><ShieldCheck size={13} /> extractive only</span></footer>
               </>
             ) : (
-              <div className="answer-placeholder">
-                <div className="placeholder-index"><Search size={20} /></div>
-                <div><strong>Ready to retrieve</strong><p>The answer will use matching source sentences and cite the exact chunks used.</p></div>
-              </div>
+              <div className="run-empty"><span><FileSearch size={22} /></span><div><strong>No run selected</strong><p>The answer, timings, refusal state, and exact citations will appear here.</p></div></div>
             )}
           </section>
 
+          <section className="ranked-results">
+            <header><span>RANKED PASSAGES</span><small>{evidence.length ? `${evidence.length} returned` : "No result"}</small></header>
+            {evidence.length ? evidence.map((chunk, index) => (
+              <button type="button" key={`${chunk.source}-${chunk.chunk_id}`} className={selectedEvidence === chunk ? "is-selected" : ""} onClick={() => onSelectEvidence(chunk)}>
+                <span className="result-rank">{String(index + 1).padStart(2, "0")}</span>
+                <span className="result-source"><strong>{chunk.source}</strong><small>chunk {chunk.chunk_id + 1}</small></span>
+                <span className="result-excerpt">{chunk.text}</span>
+                <span className="result-score">{formatScore(chunk.score)}</span>
+                <ChevronRight size={15} />
+              </button>
+            )) : <div className="results-empty">Run a question to populate the retrieval ledger.</div>}
+          </section>
+
           {history.length ? (
-            <section className="history-section">
-              <div className="history-heading"><span><History size={16} /> Recent queries</span><small>Stored in this browser</small></div>
-              <div className="history-list">
-                {history.slice(0, 4).map((item, index) => (
-                  <button type="button" key={item.id} onClick={() => onHistory(item)}>
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <strong>{item.question}</strong>
-                    <small>{item.response.confidence} · {item.elapsed} ms</small>
-                    <ChevronRight size={15} />
-                  </button>
-                ))}
-              </div>
+            <section className="recent-runs">
+              <header><span><History size={14} /> RECENT RUNS</span><small>browser local</small></header>
+              {history.slice(0, 4).map((item, index) => (
+                <button type="button" key={item.id} onClick={() => onHistory(item)}>
+                  <span>{String(index + 1).padStart(2, "0")}</span><strong>{item.question}</strong><small>{item.response.confidence} / {item.elapsed} ms</small><ChevronRight size={14} />
+                </button>
+              ))}
             </section>
           ) : null}
         </div>
-      </div>
-    </section>
+      </main>
+
+      {evidenceOpen ? <EvidenceInspector evidence={evidence} selected={selectedEvidence} onSelect={onSelectEvidence} /> : null}
+    </div>
   );
 }
 
-function LibraryView({ documents, health, isIndexing, onReindex }) {
-  const [search, setSearch] = useState("");
-  const visibleDocuments = documents.filter((document) =>
-    document.source.toLowerCase().includes(search.toLowerCase()),
-  );
-  const totalWords = documents.reduce((sum, document) => sum + document.words, 0);
-  const totalCharacters = documents.reduce((sum, document) => sum + document.characters, 0);
+function EvidenceInspector({ evidence, selected, onSelect }) {
+  const active = selected || evidence[0];
   return (
-    <section className="page-view library-view">
-      <div className="page-heading">
-        <div>
-          <h1>Corpus library</h1>
-          <p>Inspect every plain-text source currently available to retrieval.</p>
-        </div>
-        <button className="primary-button" type="button" onClick={onReindex} disabled={isIndexing}>
-          {isIndexing ? <Loader2 className="spin" size={17} /> : <RefreshCw size={17} />}
-          {isIndexing ? "Indexing…" : "Rebuild index"}
-        </button>
-      </div>
-
-      <div className="library-metrics">
-        <div><small>Files</small><strong>{documents.length}</strong><span>plain-text documents</span></div>
-        <div><small>Words</small><strong>{formatNumber(totalWords)}</strong><span>searchable terms</span></div>
-        <div><small>Characters</small><strong>{formatNumber(totalCharacters)}</strong><span>source material</span></div>
-        <div><small>Last index</small><strong>{health?.indexed_at ? "Ready" : "—"}</strong><span>{formatTime(health?.indexed_at)}</span></div>
-      </div>
-
-      <div className="library-toolbar">
-        <label><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Filter source files…" /></label>
-        <span>{visibleDocuments.length} / {documents.length} sources</span>
-      </div>
-
-      <div className="document-table">
-        <div className="document-row table-head">
-          <span>Source</span><span>Words</span><span>Chunks</span><span>Size</span><span>Status</span>
-        </div>
-        {visibleDocuments.map((document, index) => (
-          <article className="document-row" key={document.source}>
-            <div className="document-title"><span>TXT</span><div><strong>{document.source}</strong><small>docs/{document.source}</small></div></div>
-            <span>{formatNumber(document.words)}</span>
-            <span>{document.chunks}</span>
-            <span>{formatNumber(document.characters)} chars</span>
-            <span className="document-ready"><i /> Indexed</span>
-            <em>{index + 1}</em>
-          </article>
-        ))}
-      </div>
-
-      <div className="library-guide">
-        <div><Terminal size={20} /><span><small>Add material</small><strong>Drop a UTF-8 .txt file into <code>docs/</code></strong></span></div>
-        <p>Then rebuild the index. Files remain local and the in-memory matrix is replaced atomically.</p>
-        <code>cp your-file.txt docs/ && make run</code>
-      </div>
-    </section>
-  );
-}
-
-function EvaluationView({ health, results, running, onRun }) {
-  const completed = results.length;
-  const passed = results.filter((result) => result.passed).length;
-  const score = completed ? Math.round((passed / completed) * 100) : null;
-  const averageScore = completed
-    ? Math.round((results.reduce((sum, result) => sum + (result.topScore || 0), 0) / completed) * 100)
-    : null;
-  return (
-    <section className="page-view evaluation-view">
-      <div className="page-heading">
-        <div>
-          <h1>Retrieval evaluation</h1>
-          <p>Run four transparent golden questions and check which source reaches rank one.</p>
-        </div>
-        <button className="primary-button" type="button" onClick={onRun} disabled={running || !health?.index_ready}>
-          {running ? <Loader2 className="spin" size={17} /> : <FlaskConical size={17} />}
-          {running ? "Running cases…" : "Run evaluation"}
-        </button>
-      </div>
-
-      <div className="evaluation-overview">
-        <div className="score-card">
-          <div className="score-ring">
-            <span><strong>{score ?? "—"}</strong><small>{score === null ? "NOT RUN" : "/ 100"}</small></span>
+    <aside className="evidence-inspector">
+      <header><div><small>INSPECTOR</small><strong>Evidence trace</strong></div><span>{evidence.length}</span></header>
+      {!active ? (
+        <div className="inspector-empty"><span><FileSearch size={20} /></span><strong>Nothing to inspect</strong><p>Select a ranked passage after running a query.</p></div>
+      ) : (
+        <>
+          <div className="evidence-tabs">
+            {evidence.map((chunk, index) => (
+              <button type="button" key={`${chunk.source}-${chunk.chunk_id}`} className={active === chunk ? "is-active" : ""} onClick={() => onSelect(chunk)}>{index + 1}</button>
+            ))}
           </div>
-          <div><small>Retrieval health</small><h2>{score === null ? "Awaiting a baseline" : score >= 75 ? "Index is healthy" : "Tune the corpus"}</h2><p>Top-1 source accuracy across the built-in golden set.</p></div>
+          <div className="inspector-scroll">
+            <section className="evidence-identity">
+              <div className="file-stamp">TXT</div>
+              <div><small>SOURCE</small><strong>{active.source}</strong><span>chunk {active.chunk_id + 1} / rank {active.rank}</span></div>
+            </section>
+            <section className="similarity-meter">
+              <header><span>SIMILARITY</span><strong>{formatScore(active.score)}</strong></header>
+              <div><i style={{ width: formatScore(active.score) }} /></div>
+            </section>
+            <section className="evidence-copy">
+              <header><span>PASSAGE</span><small>{active.text.split(/\s+/).length} words</small></header>
+              <p><Highlight text={active.text} terms={active.matched_terms} /></p>
+            </section>
+            <section className="term-ledger">
+              <header>MATCHED TERMS</header>
+              <div>{active.matched_terms?.length ? active.matched_terms.map((term) => <span key={term}>{term}</span>) : <small>No exact query term match</small>}</div>
+            </section>
+            <section className="evidence-note"><ShieldCheck size={15} /><p>This passage is stored and ranked locally. Highlighted terms overlap with the normalized query.</p></section>
+          </div>
+        </>
+      )}
+    </aside>
+  );
+}
+
+function CorpusWorkspace({ documents, health, selectedSource, documentDetail, isIndexing, onSelect, onUpload, onDelete, onReindex }) {
+  const [filter, setFilter] = useState("");
+  const inputRef = useRef(null);
+  const visible = documents.filter((document) => document.source.toLowerCase().includes(filter.toLowerCase()));
+  return (
+    <section className="corpus-workspace">
+      <header className="workspace-heading">
+        <div><span className="section-code">02 / CORPUS</span><h1>Source manager</h1><p>Add, inspect, and remove the text files behind the index.</p></div>
+        <div>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".txt,text/plain"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onUpload(file);
+              event.target.value = "";
+            }}
+          />
+          <button className="secondary-action" type="button" onClick={() => onReindex()} disabled={isIndexing}><RefreshCw className={isIndexing ? "spin" : ""} size={15} />{isIndexing ? "Indexing" : "Rebuild"}</button>
+          <button className="primary-action" type="button" onClick={() => inputRef.current?.click()}><FilePlus2 size={15} />Add .txt</button>
         </div>
-        <div className="evaluation-stats">
-          <div><BarChart3 size={18} /><span><small>Average score</small><strong>{averageScore === null ? "—" : `${averageScore}%`}</strong></span></div>
-          <div><Zap size={18} /><span><small>Passed</small><strong>{completed ? `${passed} / ${completed}` : "—"}</strong></span></div>
-          <div><Database size={18} /><span><small>Index</small><strong>{health?.chunks_indexed || 0} chunks</strong></span></div>
-          <div><ShieldCheck size={18} /><span><small>Method</small><strong>Top-1 match</strong></span></div>
-        </div>
+      </header>
+
+      <div className="corpus-stats">
+        <div><span>FILES</span><strong>{documents.length}</strong></div>
+        <div><span>INDEX CHUNKS</span><strong>{health?.chunks_indexed || 0}</strong></div>
+        <div><span>CHUNK SIZE</span><strong>{health?.chunk_size || 200}<small>w</small></strong></div>
+        <div><span>OVERLAP</span><strong>{health?.chunk_overlap ?? 40}<small>w</small></strong></div>
+        <div><span>LAST BUILD</span><strong className="date-value">{formatDate(health?.indexed_at)}</strong></div>
       </div>
 
-      <div className="evaluation-table">
-        <div className="evaluation-row evaluation-head"><span>Golden question</span><span>Expected source</span><span>Top result</span><span>Outcome</span></div>
+      <div className="corpus-grid">
+        <section className="document-ledger">
+          <header><label><Search size={14} /><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter sources" /></label><span>{visible.length} shown</span></header>
+          <div className="document-head"><span>FILE</span><span>WORDS</span><span>CHUNKS</span><span>UPDATED</span></div>
+          <div className="document-list">
+            {visible.map((document) => (
+              <button type="button" key={document.source} className={selectedSource === document.source ? "is-selected" : ""} onClick={() => onSelect(document.source)}>
+                <span className="doc-name"><i>TXT</i><strong>{document.source}</strong></span>
+                <span>{formatNumber(document.words)}</span>
+                <span>{document.chunks}</span>
+                <span>{formatDate(document.updated_at)}</span>
+              </button>
+            ))}
+            {!visible.length ? <div className="document-empty">No matching .txt sources.</div> : null}
+          </div>
+        </section>
+
+        <aside className="document-preview">
+          {documentDetail ? (
+            <>
+              <header><div><small>DOCUMENT</small><strong>{documentDetail.source}</strong></div><IconButton danger label="Delete document" onClick={() => onDelete(documentDetail.source)}><Trash2 size={15} /></IconButton></header>
+              <dl>
+                <div><dt>WORDS</dt><dd>{formatNumber(documentDetail.words)}</dd></div>
+                <div><dt>CHUNKS</dt><dd>{documentDetail.chunks}</dd></div>
+                <div><dt>CHARACTERS</dt><dd>{formatNumber(documentDetail.characters)}</dd></div>
+              </dl>
+              <div className="document-content"><div><span>RAW TEXT</span><small>UTF-8</small></div><p>{documentDetail.text}</p></div>
+            </>
+          ) : <div className="preview-empty"><BookOpen size={22} /><strong>Select a source</strong><p>Its raw local text and index footprint will appear here.</p></div>}
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function ChecksWorkspace({ health, results, running, onRun }) {
+  const passed = results.filter((result) => result.passed).length;
+  const score = results.length ? Math.round((passed / results.length) * 100) : null;
+  return (
+    <section className="checks-workspace">
+      <header className="workspace-heading">
+        <div><span className="section-code">03 / CHECKS</span><h1>Retrieval checks</h1><p>Four small golden cases make ranking quality visible before you trust an answer.</p></div>
+        <button className="primary-action" type="button" onClick={onRun} disabled={running || !health?.index_ready}>{running ? <Loader2 className="spin" size={15} /> : <FlaskConical size={15} />}{running ? "Running" : "Run all cases"}</button>
+      </header>
+
+      <div className="check-summary">
+        <div className="check-score"><span>TOP-1 ACCURACY</span><strong>{score === null ? "--" : score}<small>{score === null ? "" : "%"}</small></strong><p>{score === null ? "No baseline yet" : `${passed} of ${results.length} expected sources ranked first`}</p></div>
+        <div className="check-method"><ClipboardCheck size={20} /><div><span>METHOD</span><strong>Expected source vs. rank 1</strong><p>This checks retrieval on the included demo corpus. It is intentionally small and does not claim general model quality.</p></div></div>
+      </div>
+
+      <section className="check-table">
+        <header><span>CASE</span><span>QUESTION</span><span>EXPECTED</span><span>ACTUAL / SCORE</span><span>RESULT</span></header>
         {evaluationCases.map((testCase, index) => {
           const result = results[index];
           return (
-            <article className="evaluation-row" key={testCase.question}>
-              <div><small>Case {index + 1}</small><strong>{testCase.question}</strong></div>
-              <span>{testCase.expected}</span>
-              <span>{result?.actual || "Not run"}{result ? <small>{formatScore(result.topScore)}</small> : null}</span>
-              <span className={result ? (result.passed ? "pass" : "review") : "pending"}>
-                {running && !result ? <Loader2 className="spin" size={14} /> : result?.passed ? <Check size={14} /> : result ? <CircleAlert size={14} /> : <span />}
-                {result ? (result.passed ? "PASS" : "REVIEW") : "PENDING"}
-              </span>
-            </article>
+            <div key={testCase.question}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <strong>{testCase.question}</strong>
+              <code>{testCase.expected}</code>
+              <span>{result ? <><code>{result.actual}</code><small>{formatScore(result.topScore)}</small></> : "Not run"}</span>
+              <span className={`case-result ${result ? (result.passed ? "pass" : "review") : "pending"}`}>{running && !result ? <Loader2 className="spin" size={13} /> : result?.passed ? <Check size={13} /> : result ? <CircleAlert size={13} /> : <i />}{result ? (result.passed ? "PASS" : "REVIEW") : "PENDING"}</span>
+            </div>
           );
         })}
-      </div>
-
-      <div className="evaluation-note">
-        <Clipboard size={19} />
-        <p><strong>What this proves:</strong> the correct document is ranked first for representative questions. It does not measure answer fluency or semantic recall beyond this small corpus.</p>
-      </div>
+      </section>
     </section>
   );
 }
 
-function SettingsDialog({ topK, onTopK, onClose }) {
+function SettingsDialog({ topK, chunkSize, chunkOverlap, health, onTopK, onApply, onClose, isIndexing }) {
+  const [nextChunkSize, setNextChunkSize] = useState(chunkSize);
+  const [nextOverlap, setNextOverlap] = useState(chunkOverlap);
+  const valid = nextChunkSize >= 20 && nextChunkSize <= 2000 && nextOverlap >= 0 && nextOverlap < nextChunkSize;
   useEffect(() => {
-    const closeOnEscape = (event) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    const close = (event) => event.key === "Escape" && onClose();
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
   }, [onClose]);
   return (
-    <div className="dialog-backdrop" onMouseDown={onClose}>
+    <div className="modal-backdrop" onMouseDown={onClose}>
       <section className="settings-dialog" role="dialog" aria-modal="true" aria-label="Retrieval settings" onMouseDown={(event) => event.stopPropagation()}>
-        <header><div><small>Retrieval settings</small><h2>Query controls</h2></div><IconButton label="Close settings" onClick={onClose}><X size={18} /></IconButton></header>
-        <div className="settings-explainer"><Layers3 size={20} /><p>This project intentionally exposes one query-time control. Chunking and thresholds stay in code so the assessment remains predictable and easy to explain.</p></div>
-        <label className="settings-range">
-          <span><strong>Top K evidence chunks</strong><small>Maximum candidates retrieved for each question.</small></span>
-          <em>{topK}</em>
-          <input type="range" min="1" max="8" value={topK} onChange={(event) => onTopK(Number(event.target.value))} />
-        </label>
-        <div className="pipeline-settings">
-          <div><small>Chunk size</small><strong>200 words</strong><span>fixed at indexing</span></div>
-          <div><small>Overlap</small><strong>40 words</strong><span>fixed at indexing</span></div>
-          <div><small>Minimum score</small><strong>0.12</strong><span>refusal threshold</span></div>
+        <header><div><small>INDEX CONFIGURATION</small><h2>Retrieval settings</h2></div><IconButton label="Close" onClick={onClose}><X size={17} /></IconButton></header>
+        <p className="dialog-copy">Query depth changes immediately. Chunk settings rebuild the in-memory index so the displayed configuration always matches retrieval.</p>
+        <label className="range-setting"><span><strong>Top K</strong><small>Maximum passages returned per query</small></span><em>{topK}</em><input type="range" min="1" max="8" value={topK} onChange={(event) => onTopK(Number(event.target.value))} /></label>
+        <div className="number-settings">
+          <label><span>CHUNK SIZE</span><input type="number" min="20" max="2000" value={nextChunkSize} onChange={(event) => setNextChunkSize(Number(event.target.value))} /><small>words</small></label>
+          <label><span>OVERLAP</span><input type="number" min="0" max="500" value={nextOverlap} onChange={(event) => setNextOverlap(Number(event.target.value))} /><small>words</small></label>
         </div>
-        <footer><span><ShieldCheck size={15} /> Settings stay in this browser.</span><button type="button" onClick={onClose}>Done <Check size={15} /></button></footer>
+        {!valid ? <p className="setting-error">Overlap must be smaller than chunk size. Chunk size must be between 20 and 2000.</p> : null}
+        <div className="settings-readout"><span><i /> ACTIVE INDEX</span><code>{health?.retrieval_method || "tfidf-cosine"}</code><code>min {health?.min_score ?? 0.12}</code></div>
+        <footer><button type="button" className="secondary-action" onClick={onClose}>Cancel</button><button type="button" className="primary-action" disabled={!valid || isIndexing} onClick={() => onApply(nextChunkSize, nextOverlap)}>{isIndexing ? <Loader2 className="spin" size={15} /> : <RefreshCw size={15} />}Apply and rebuild</button></footer>
+      </section>
+    </div>
+  );
+}
+
+function ConfirmDialog({ source, onConfirm, onClose, busy }) {
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section className="confirm-dialog" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <span className="danger-symbol"><Trash2 size={19} /></span>
+        <h2>Remove this source?</h2>
+        <p><code>{source}</code> will be deleted from <code>docs/</code>. Groundline will rebuild the remaining index immediately.</p>
+        <footer><button className="secondary-action" type="button" onClick={onClose}>Cancel</button><button className="danger-action" type="button" onClick={onConfirm} disabled={busy}>{busy ? <Loader2 className="spin" size={15} /> : <Trash2 size={15} />}Delete source</button></footer>
       </section>
     </div>
   );
@@ -648,40 +554,43 @@ function SettingsDialog({ topK, onTopK, onClose }) {
 export default function App() {
   const booted = useRef(false);
   const [activeView, setActiveView] = useState("ask");
+  const [theme, setTheme] = useState(() => window.localStorage.getItem(THEME_KEY) || "dark");
   const [question, setQuestion] = useState(exampleQuestions[0]);
   const [topK, setTopK] = useState(3);
-  const [documents, setDocuments] = useState([]);
+  const [chunkSize, setChunkSize] = useState(200);
+  const [chunkOverlap, setChunkOverlap] = useState(40);
   const [health, setHealth] = useState(null);
-  const [answerState, setAnswerState] = useState(null);
-  const [responseMs, setResponseMs] = useState(null);
-  const [history, setHistory] = useState(readHistory);
+  const [documents, setDocuments] = useState([]);
+  const [selectedSource, setSelectedSource] = useState("");
+  const [documentDetail, setDocumentDetail] = useState(null);
+  const [answer, setAnswer] = useState(null);
   const [selectedEvidence, setSelectedEvidence] = useState(null);
+  const [elapsed, setElapsed] = useState(null);
+  const [history, setHistory] = useState(readHistory);
   const [evaluationResults, setEvaluationResults] = useState([]);
+  const [evidenceOpen, setEvidenceOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deleteSource, setDeleteSource] = useState("");
   const [isBooting, setIsBooting] = useState(true);
   const [isIndexing, setIsIndexing] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
-  const [evidenceOpen, setEvidenceOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [theme, setTheme] = useState(() => window.localStorage.getItem("groundline.theme") || "light");
 
-  const evidence = useMemo(
-    () => answerState?.chunks || answerState?.sources || [],
-    [answerState],
-  );
+  const evidence = useMemo(() => answer?.chunks || answer?.sources || [], [answer]);
 
   async function loadSnapshot({ autoIndex = false } = {}) {
     setError("");
     try {
-      const [nextHealth, documentPayload] = await Promise.all([
-        api("/health"),
-        api("/documents"),
-      ]);
+      const [nextHealth, payload] = await Promise.all([api("/health"), api("/documents")]);
       setHealth(nextHealth);
-      setDocuments(documentPayload.documents || []);
-      if (autoIndex && !nextHealth.index_ready && documentPayload.documents?.length) {
+      setDocuments(payload.documents || []);
+      setChunkSize(nextHealth.chunk_size || 200);
+      setChunkOverlap(nextHealth.chunk_overlap ?? 40);
+      setSelectedSource((current) => current || payload.documents?.[0]?.source || "");
+      if (autoIndex && !nextHealth.index_ready && payload.documents?.length) {
         await rebuildIndex({ quiet: true });
       }
     } catch (requestError) {
@@ -693,54 +602,66 @@ export default function App() {
     }
   }
 
-  async function rebuildIndex({ quiet = false } = {}) {
+  async function loadDocument(source) {
+    if (!source) {
+      setDocumentDetail(null);
+      return;
+    }
+    try {
+      setDocumentDetail(await api(`/documents/${encodeURIComponent(source)}`));
+    } catch (requestError) {
+      setDocumentDetail(null);
+      setError(requestError.message);
+    }
+  }
+
+  async function rebuildIndex({ quiet = false, nextChunkSize = chunkSize, nextOverlap = chunkOverlap } = {}) {
     setIsIndexing(true);
     setError("");
     try {
-      await api("/index", { method: "POST" });
-      const [nextHealth, documentPayload] = await Promise.all([
-        api("/health"),
-        api("/documents"),
-      ]);
+      await api("/index", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chunk_size: Number(nextChunkSize), chunk_overlap: Number(nextOverlap) }),
+      });
+      setChunkSize(Number(nextChunkSize));
+      setChunkOverlap(Number(nextOverlap));
+      const [nextHealth, payload] = await Promise.all([api("/health"), api("/documents")]);
       setHealth(nextHealth);
-      setDocuments(documentPayload.documents || []);
+      setDocuments(payload.documents || []);
       setEvaluationResults([]);
-      if (!quiet) setNotice("Local index rebuilt successfully.");
+      if (!quiet) setNotice(`Index rebuilt: ${nextHealth.chunks_indexed} chunks ready.`);
+      return true;
     } catch (requestError) {
       setError(requestError.message);
+      return false;
     } finally {
       setIsIndexing(false);
     }
   }
 
-  async function askQuestion(event, overrideQuestion) {
+  async function askQuestion(event, override) {
     event?.preventDefault();
-    const cleanQuestion = (overrideQuestion || question).trim();
+    const cleanQuestion = (override || question).trim();
     if (!cleanQuestion || isAsking) return;
     setQuestion(cleanQuestion);
     setIsAsking(true);
     setError("");
-    const startedAt = performance.now();
+    const started = performance.now();
     try {
       const response = await api("/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: cleanQuestion, top_k: Number(topK) }),
       });
-      const elapsed = Math.max(1, Math.round(performance.now() - startedAt));
-      setAnswerState(response);
-      setResponseMs(elapsed);
+      const duration = Math.max(1, Math.round(performance.now() - started));
+      setAnswer(response);
+      setElapsed(duration);
       setSelectedEvidence(response.chunks?.[0] || null);
       setEvidenceOpen(true);
-      const entry = {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        question: cleanQuestion,
-        response,
-        elapsed,
-        createdAt: new Date().toISOString(),
-      };
+      const item = { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, question: cleanQuestion, response, elapsed: duration };
       setHistory((current) => {
-        const next = [entry, ...current.filter((item) => item.question !== cleanQuestion)].slice(0, 12);
+        const next = [item, ...current.filter((entry) => entry.question !== cleanQuestion)].slice(0, 12);
         saveHistory(next);
         return next;
       });
@@ -748,6 +669,50 @@ export default function App() {
       setError(requestError.message);
     } finally {
       setIsAsking(false);
+    }
+  }
+
+  async function uploadDocument(file) {
+    if (!file.name.toLowerCase().endsWith(".txt")) {
+      setError("Only UTF-8 .txt files are supported.");
+      return;
+    }
+    try {
+      const text = await file.text();
+      let replace = false;
+      if (documents.some((document) => document.source === file.name)) {
+        replace = window.confirm(`${file.name} already exists. Replace it and rebuild the index?`);
+        if (!replace) return;
+      }
+      await api("/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: file.name, text, replace, reindex: true }),
+      });
+      await loadSnapshot();
+      setSelectedSource(file.name);
+      setNotice(`${file.name} added and indexed.`);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  async function deleteDocument() {
+    if (!deleteSource) return;
+    setIsDeleting(true);
+    setError("");
+    try {
+      await api(`/documents/${encodeURIComponent(deleteSource)}`, { method: "DELETE" });
+      const removed = deleteSource;
+      setDeleteSource("");
+      setSelectedSource("");
+      setDocumentDetail(null);
+      await loadSnapshot();
+      setNotice(`${removed} removed. Index rebuilt.`);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -764,14 +729,10 @@ export default function App() {
           body: JSON.stringify({ question: testCase.question, top_k: 3 }),
         });
         const first = response.chunks?.[0];
-        results.push({
-          actual: first?.source || "No evidence",
-          topScore: first?.score || 0,
-          passed: first?.source === testCase.expected,
-        });
+        results.push({ actual: first?.source || "No evidence", topScore: first?.score || 0, passed: first?.source === testCase.expected });
         setEvaluationResults([...results]);
       }
-      setNotice(`Evaluation complete: ${results.filter((result) => result.passed).length}/${results.length} passed.`);
+      setNotice(`Checks complete: ${results.filter((result) => result.passed).length}/${results.length} passed.`);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -781,15 +742,10 @@ export default function App() {
 
   function openHistory(item) {
     setQuestion(item.question);
-    setAnswerState(item.response);
-    setResponseMs(item.elapsed);
+    setAnswer(item.response);
+    setElapsed(item.elapsed);
     setSelectedEvidence(item.response.chunks?.[0] || null);
     setEvidenceOpen(true);
-  }
-
-  function copyAnswer() {
-    if (!answerState?.answer) return;
-    navigator.clipboard.writeText(answerState.answer).then(() => setNotice("Answer copied to clipboard."));
   }
 
   useEffect(() => {
@@ -800,92 +756,48 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("groundline.theme", theme);
+    window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   useEffect(() => {
-    const onShortcut = (event) => {
+    if (activeView === "library" && selectedSource) loadDocument(selectedSource);
+  }, [activeView, selectedSource, documents]);
+
+  useEffect(() => {
+    const shortcut = (event) => {
       if ((event.metaKey || event.ctrlKey) && ["1", "2", "3"].includes(event.key)) {
         event.preventDefault();
         setActiveView(["ask", "library", "evaluate"][Number(event.key) - 1]);
       }
     };
-    window.addEventListener("keydown", onShortcut);
-    return () => window.removeEventListener("keydown", onShortcut);
+    window.addEventListener("keydown", shortcut);
+    return () => window.removeEventListener("keydown", shortcut);
   }, []);
 
   useEffect(() => {
     if (!notice) return undefined;
-    const timeout = window.setTimeout(() => setNotice(""), 2600);
+    const timeout = window.setTimeout(() => setNotice(""), 2800);
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
+  function selectDocument(source) {
+    setSelectedSource(source);
+    setActiveView("library");
+  }
+
   return (
     <div className="app-shell">
-      <Sidebar
-        activeView={activeView}
-        health={health}
-        documents={documents}
-        onNavigate={setActiveView}
-        onReindex={() => rebuildIndex()}
-        isIndexing={isIndexing}
-      />
-      <main className="main-shell">
-        <Topbar
-          activeView={activeView}
-          theme={theme}
-          evidenceOpen={evidenceOpen}
-          onTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
-          onEvidence={() => setEvidenceOpen((current) => !current)}
-          onSettings={() => setSettingsOpen(true)}
-        />
-        {error ? (
-          <div className="error-banner" role="alert">
-            <CircleAlert size={17} />
-            <span><strong>Workspace error</strong>{error}</span>
-            <button type="button" onClick={() => loadSnapshot()}><RefreshCw size={15} /> Retry</button>
-          </div>
-        ) : null}
-        {activeView === "ask" ? (
-          <div className={`ask-layout ${evidenceOpen ? "with-evidence" : ""}`}>
-            <AskView
-              question={question}
-              topK={topK}
-              health={health}
-              documents={documents}
-              answerState={answerState}
-              responseMs={responseMs}
-              history={history}
-              isAsking={isAsking || isBooting}
-              onQuestion={setQuestion}
-              onTopK={setTopK}
-              onAsk={askQuestion}
-              onExample={(example) => askQuestion(null, example)}
-              onCitation={(chunk) => {
-                setSelectedEvidence(chunk);
-                setEvidenceOpen(true);
-              }}
-              onCopy={copyAnswer}
-              onHistory={openHistory}
-            />
-            <EvidencePanel
-              open={evidenceOpen}
-              evidence={evidence}
-              selected={selectedEvidence}
-              onSelect={setSelectedEvidence}
-              onClose={() => setEvidenceOpen(false)}
-            />
-          </div>
-        ) : null}
-        {activeView === "library" ? (
-          <LibraryView documents={documents} health={health} isIndexing={isIndexing} onReindex={() => rebuildIndex()} />
-        ) : null}
-        {activeView === "evaluate" ? (
-          <EvaluationView health={health} results={evaluationResults} running={isEvaluating} onRun={runEvaluation} />
-        ) : null}
-      </main>
-      {settingsOpen ? <SettingsDialog topK={topK} onTopK={setTopK} onClose={() => setSettingsOpen(false)} /> : null}
-      {notice ? <div className="toast"><Check size={16} />{notice}</div> : null}
+      <Sidebar activeView={activeView} documents={documents} health={health} onNavigate={setActiveView} onSelectDocument={selectDocument} />
+      <section className="main-shell">
+        <Topbar activeView={activeView} health={health} theme={theme} evidenceOpen={evidenceOpen} onTheme={() => setTheme((current) => current === "dark" ? "light" : "dark")} onSettings={() => setSettingsOpen(true)} onEvidence={() => setEvidenceOpen((current) => !current)} />
+        {error ? <div className="error-banner" role="alert"><CircleAlert size={15} /><span>{error}</span><button type="button" onClick={() => loadSnapshot()}><RefreshCw size={14} />Retry</button><IconButton label="Dismiss error" onClick={() => setError("")}><X size={14} /></IconButton></div> : null}
+        {activeView === "ask" ? <QueryWorkspace question={question} topK={topK} health={health} documents={documents} answer={answer} elapsed={elapsed} history={history} isAsking={isAsking || isBooting} evidenceOpen={evidenceOpen} selectedEvidence={selectedEvidence} onQuestion={setQuestion} onTopK={setTopK} onAsk={askQuestion} onExample={(example) => askQuestion(null, example)} onCitation={(chunk) => { setSelectedEvidence(chunk); setEvidenceOpen(true); }} onSelectEvidence={setSelectedEvidence} onHistory={openHistory} onCopy={() => { navigator.clipboard.writeText(answer?.answer || ""); setNotice("Answer copied."); }} /> : null}
+        {activeView === "library" ? <CorpusWorkspace documents={documents} health={health} selectedSource={selectedSource} documentDetail={documentDetail} isIndexing={isIndexing} onSelect={setSelectedSource} onUpload={uploadDocument} onDelete={setDeleteSource} onReindex={() => rebuildIndex()} /> : null}
+        {activeView === "evaluate" ? <ChecksWorkspace health={health} results={evaluationResults} running={isEvaluating} onRun={runEvaluation} /> : null}
+      </section>
+      {settingsOpen ? <SettingsDialog topK={topK} chunkSize={chunkSize} chunkOverlap={chunkOverlap} health={health} onTopK={setTopK} isIndexing={isIndexing} onClose={() => setSettingsOpen(false)} onApply={async (nextChunkSize, nextOverlap) => { const applied = await rebuildIndex({ nextChunkSize, nextOverlap }); if (applied) setSettingsOpen(false); }} /> : null}
+      {deleteSource ? <ConfirmDialog source={deleteSource} busy={isDeleting} onClose={() => setDeleteSource("")} onConfirm={deleteDocument} /> : null}
+      {notice ? <div className="toast"><Check size={14} />{notice}</div> : null}
     </div>
   );
 }
