@@ -9,3 +9,5 @@ __pycache__/
 docx_render/
 frontend/node_modules/
 frontend/dist/
+.rag_data/
+*.apkg
