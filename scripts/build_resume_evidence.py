@@ -113,7 +113,7 @@ ledger = {
         "original_baseline": "a62ab5738031547343343ba8c3c22f7398441414",
         "round1_head": "735d0ebd27817d48e4662d6a3646ecb19130a9e0",
         "round1_tag": "codex/round1-complete",
-        "evidence_source_commit": git("rev-parse", "HEAD"),
+        "round2_start_commit": git("rev-parse", "codex/round1-complete^{}"),
     },
     "data_and_model": evaluation["versions"],
     "benchmark": {

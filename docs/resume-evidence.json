@@ -9,7 +9,7 @@
     "original_baseline": "a62ab5738031547343343ba8c3c22f7398441414",
     "round1_head": "735d0ebd27817d48e4662d6a3646ecb19130a9e0",
     "round1_tag": "codex/round1-complete",
-    "evidence_source_commit": "aa5d2c37f764460332ea1f9c248d7f62dccd493c"
+    "round2_start_commit": "735d0ebd27817d48e4662d6a3646ecb19130a9e0"
   },
   "data_and_model": {
     "corpus_sha256": "f2df4e34c663f7f47f0562b788d333ebe2f0fb58b77de12ad06bae87140693a2",
@@ -42,7 +42,7 @@
       "abstention_accuracy": 1.0
     },
     "gate_passed": true,
-    "artifact_sha256": "e62136641c2eddef4ff1c55bb653d2bab8dbd873d7a5e237007aa90a4aceb178"
+    "artifact_sha256": "22b6897374130c56b9a27611149fd5d26c4eb284ae3719333a3baa5967d9cb93"
   },
   "entries": [
     {

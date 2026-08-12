@@ -6,7 +6,6 @@ import json
 import shutil
 import sqlite3
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -97,7 +96,6 @@ def evaluate(benchmark_dir: Path, data_dir: Path, output_dir: Path) -> dict[str,
         "benchmark_id": truth["benchmark_id"],
         "fixture": True,
         "scope": truth["scope"],
-        "generated_at": datetime.now(timezone.utc).isoformat(),
         "versions": {
             "corpus_sha256": actual_corpus_hash,
             "ground_truth_sha256": hashlib.sha256(truth_bytes).hexdigest(),
