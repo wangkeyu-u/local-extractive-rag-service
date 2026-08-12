@@ -1,42 +1,19 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
 class AskRequest(BaseModel):
-    question: str = Field(..., examples=["What is the refund policy?"])
-    top_k: int = Field(3, ge=1, le=10)
+    question: str
+    top_k: int = Field(5, ge=1, le=20)
+    session_id: str | None = None
 
 
-class SourceChunk(BaseModel):
-    source: str
-    chunk_id: int
-    score: float
-    text: str
+class QuizRequest(BaseModel):
+    topic: str = ""
+    count: int = Field(5, ge=1, le=20)
 
 
-class IndexResponse(BaseModel):
-    status: str
-    documents_indexed: int
-    chunks_indexed: int
-    sources: list[str]
-
-
-class AskResponse(BaseModel):
-    answer: str
-    chunks: list[SourceChunk]
-    sources: list[SourceChunk]
-
-
-class DocumentInfo(BaseModel):
-    source: str
-    characters: int
-    words: int
-
-
-class DocumentsResponse(BaseModel):
-    documents: list[DocumentInfo]
-
-
-class HealthResponse(BaseModel):
-    status: str
-    index_ready: bool
-    chunks_indexed: int
+class ReviewRequest(BaseModel):
+    card: dict[str, Any]
+    rating: int = Field(ge=0, le=3)
