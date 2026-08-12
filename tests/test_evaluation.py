@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.evaluation import corpus_hash, evaluate
+from app.providers import DeterministicProvider
 from app.retrieval import HybridRetriever
 
 
@@ -61,3 +62,16 @@ def test_removed_retrieval_capability_fails_gate(tmp_path, monkeypatch):
     assert report["gate_passed"] is False
     assert report["metrics"]["single_recall_at_5"] == 0.0
     assert report["metrics"]["multi_evidence_coverage_at_8"] == 0.0
+
+
+def test_wrong_provider_citations_fail_sentence_precision_gate(tmp_path, monkeypatch):
+    original_answer = DeterministicProvider.answer
+
+    def wrong_citation(self, question, hits):
+        answer, _ = original_answer(self, question, hits)
+        return answer.replace(" p. 1]", " p. 99]").replace(" p. 2]", " p. 99]"), ["wrong.pdf p. 99"]
+
+    monkeypatch.setattr(DeterministicProvider, "answer", wrong_citation)
+    report = evaluate(ROOT / "benchmark", tmp_path / "data", tmp_path / "out")
+    assert report["gate_passed"] is False
+    assert report["metrics"]["sentence_citation_precision"] == 0.0

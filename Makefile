@@ -6,7 +6,7 @@ endif
 API_HOST ?= 127.0.0.1
 API_PORT ?= 8000
 
-.PHONY: install test eval run demo frontend-install frontend-dev frontend-build docker-build
+.PHONY: install test eval evidence run demo frontend-install frontend-dev frontend-build docker-build
 
 install:
 	python -m venv .venv
@@ -17,6 +17,9 @@ test:
 
 eval:
 	.venv/bin/python scripts/evaluate.py
+
+evidence: eval
+	.venv/bin/python scripts/build_resume_evidence.py
 
 run:
 	.venv/bin/uvicorn app:app --host $(API_HOST) --port $(API_PORT) --reload

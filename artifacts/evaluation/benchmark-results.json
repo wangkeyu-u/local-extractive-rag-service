@@ -3,11 +3,12 @@
   "benchmark_id": "local-rag-curated-fixture-v1",
   "fixture": true,
   "scope": "Synthetic regression fixture; not production or representative quality evidence.",
-  "generated_at": "2026-08-12T17:27:55.261539+00:00",
+  "generated_at": "2026-08-12T17:30:10.344889+00:00",
   "versions": {
     "corpus_sha256": "f2df4e34c663f7f47f0562b788d333ebe2f0fb58b77de12ad06bae87140693a2",
     "ground_truth_sha256": "c5f1f56688b3be23b96af20947ff13f0e7f849fe6d22ed0efad9169b100c50dd",
     "embedding": "deterministic-hash-v1-384",
+    "embedding_implementation_sha256": "f3fdfed83cd3d76cf7c4129f2596d2fadeec2f4caa50aaf388f98f770b5886e8",
     "vector_store": "ChromaDB",
     "keyword_store": "SQLite FTS5",
     "fusion": "RRF(k=60)",

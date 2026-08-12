@@ -6,7 +6,7 @@ The default provider is deliberately deterministic and offline. It does not call
 
 ## Verified capabilities
 
-- `.pdf` and `.txt` ingestion, overlapping chunks, source/page/chunk metadata
+- `.pdf`, structured Markdown, and `.txt` ingestion, overlapping chunks, source/page/section/chunk metadata
 - persistent ChromaDB cosine vector retrieval and independent SQLite FTS5/BM25 retrieval
 - RRF hybrid fusion with vector rank/distance, FTS rank/BM25, matched terms, and subquery trace
 - deterministic provider abstraction for rewrite, multi-part query decomposition, reranking, extractive answers, confidence gating, and citation grounding
@@ -100,7 +100,16 @@ curl -OJ 'http://127.0.0.1:8000/anki?topic=refund&count=10'
 cd frontend && npm run build
 ```
 
-The integration suite creates and parses a two-page PDF, exercises real ChromaDB and FTS5 stores, inspects RRF traces and citations, verifies the confidence refusal path and multi-turn rewrite, persists a review, loads graph data, and opens the generated `.apkg` as an Anki ZIP package.
+Run the versioned offline quality gate and regenerate the resume evidence ledger:
+
+```bash
+make eval
+make evidence
+```
+
+The committed benchmark is explicitly a synthetic curated fixture: 12 single-hop, 6 multi-hop, and 3 unanswerable questions across two generated PDFs, two Markdown documents, and three text documents. Current computed fixture metrics are recorded in `artifacts/evaluation/benchmark-results.json`; they must not be extrapolated to production or described as a baseline comparison. `docs/RESUME_EVIDENCE.md` therefore marks the resume's broad “perfect benchmark” sentence as unsupported despite the fixture currently passing every gate.
+
+The integration suite creates and parses a two-page PDF, exercises real ChromaDB and FTS5 stores, inspects RRF traces and citations, verifies the confidence refusal path and multi-turn rewrite, persists a review, loads graph data, and opens the generated `.apkg` as an Anki ZIP package. Negative tests corrupt corpus bytes, change evidence locators, remove retrieval, and inject wrong citations; each must make the evaluator reject the run.
 
 ## Architecture
 
