@@ -55,19 +55,19 @@ class DeterministicProvider(RagProvider):
 
     def answer(self, question: str, hits: list[SearchHit]) -> tuple[str, list[str]]:
         terms = set(tokenize(question))
-        candidates: list[tuple[int, int, str, str]] = []
+        chosen: list[tuple[str, str]] = []
         for hit_rank, hit in enumerate(hits):
             sentences = re.split(r"(?<=[.!?。！？])\s+", hit.chunk.text)
+            candidates: list[tuple[int, str]] = []
             for sentence in sentences:
                 overlap = len(terms & set(tokenize(sentence)))
-                candidates.append((overlap, -hit_rank, sentence.strip(), hit.chunk.citation))
-        candidates.sort(reverse=True)
-        chosen: list[tuple[str, str]] = []
-        for overlap, _, sentence, citation in candidates:
+                candidates.append((overlap, sentence.strip()))
+            candidates.sort(reverse=True)
+            overlap, sentence = candidates[0] if candidates else (0, "")
             if not sentence or (overlap == 0 and chosen):
                 continue
             if sentence not in [item[0] for item in chosen]:
-                chosen.append((sentence, citation))
+                chosen.append((sentence, hit.chunk.citation))
             if len(chosen) == 3:
                 break
         citations = list(dict.fromkeys(citation for _, citation in chosen))

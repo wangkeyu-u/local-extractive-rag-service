@@ -113,10 +113,14 @@ class HybridRetriever:
         return {row["id"]: self._chunk(row) for row in rows}
 
     def search(self, query: str, top_k: int = 5, candidate_k: int | None = None) -> list[SearchHit]:
-        if not self.is_ready:
+        if not self.sqlite_path.exists():
             raise RetrievalError("no hybrid index found; run POST /index first")
         candidate_k = candidate_k or max(top_k * 3, 10)
         collection = self._load_chroma()
+        with self._db() as db:
+            sqlite_count = int(db.execute("SELECT count(*) FROM chunks").fetchone()[0])
+        if sqlite_count == 0 or collection.count() != sqlite_count:
+            raise RetrievalError("hybrid index is incomplete; run POST /index to rebuild both stores")
         try:
             vector = collection.query(
                 query_embeddings=[self.embedding.embed(query)],

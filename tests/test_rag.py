@@ -122,6 +122,14 @@ def test_multi_turn_session_rewrites_follow_up(service):
     assert "What is the refund policy?" in second["rewritten_query"]
 
 
+def test_multi_hop_question_retrieves_both_topics(service):
+    result = service.ask("Explain refunds and compare shipping", top_k=5)
+    texts = " ".join(item["text"].casefold() for item in result["results"])
+    assert "refund" in texts and "shipping" in texts
+    assert len(result["subqueries"]) == 2
+    assert any("refund" in citation.casefold() or citation == "handbook.pdf p. 1" for citation in result["citations"])
+
+
 def test_quiz_review_and_graph(service):
     card = service.create_quiz("refund", count=1)[0]
     assert card["citation"] == "handbook.pdf p. 1"
