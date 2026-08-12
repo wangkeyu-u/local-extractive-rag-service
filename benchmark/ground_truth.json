@@ -1,0 +1,33 @@
+{
+  "benchmark_id": "local-rag-curated-fixture-v1",
+  "fixture": true,
+  "scope": "Synthetic regression fixture; not production or representative quality evidence.",
+  "corpus_sha256": "f2df4e34c663f7f47f0562b788d333ebe2f0fb58b77de12ad06bae87140693a2",
+  "single_hop": [
+    {"id":"s01","question":"How many hours does the Orion emergency battery provide power?","evidence":[{"source":"emergency.pdf","page":1,"section":""}]},
+    {"id":"s02","question":"What is the Orion replacement cell code?","evidence":[{"source":"emergency.pdf","page":1,"section":""}]},
+    {"id":"s03","question":"What alarm pattern signals evacuation?","evidence":[{"source":"emergency.pdf","page":2,"section":""}]},
+    {"id":"s04","question":"Where do crew assemble during evacuation?","evidence":[{"source":"emergency.pdf","page":2,"section":""}]},
+    {"id":"s05","question":"On which day are Lumen sensors calibrated?","evidence":[{"source":"instruments.pdf","page":1,"section":""}]},
+    {"id":"s06","question":"What is the maximum range of the Delta field sensor?","evidence":[{"source":"instruments.pdf","page":2,"section":""}]},
+    {"id":"s07","question":"How many nightly snapshots does the archive retain?","evidence":[{"source":"operations.md","page":1,"section":"Aurora Operations > Backup Protocol"}]},
+    {"id":"s08","question":"Which command verifies archive integrity?","evidence":[{"source":"operations.md","page":1,"section":"Aurora Operations > Backup Protocol"}]},
+    {"id":"s09","question":"After how many days do amber access keys expire?","evidence":[{"source":"operations.md","page":1,"section":"Aurora Operations > Access Keys"}]},
+    {"id":"s10","question":"What percentage of greywater does the closed-loop system recover?","evidence":[{"source":"habitat.md","page":1,"section":"Aurora Habitat Handbook > Water Recovery"}]},
+    {"id":"s11","question":"When does the Vega uplink window open?","evidence":[{"source":"communications.txt","page":1,"section":""}]},
+    {"id":"s12","question":"What is the maximum permitted cargo crate weight?","evidence":[{"source":"logistics.txt","page":1,"section":""}]}
+  ],
+  "multi_hop": [
+    {"id":"m01","question":"State the Orion battery duration and the evacuation assembly station","evidence":[{"source":"emergency.pdf","page":1,"section":""},{"source":"emergency.pdf","page":2,"section":""}]},
+    {"id":"m02","question":"Give the snapshot retention count and amber key expiration period","evidence":[{"source":"operations.md","page":1,"section":"Aurora Operations > Backup Protocol"},{"source":"operations.md","page":1,"section":"Aurora Operations > Access Keys"}]},
+    {"id":"m03","question":"Report the greywater recovery percentage and Vega uplink opening time","evidence":[{"source":"habitat.md","page":1,"section":"Aurora Habitat Handbook > Water Recovery"},{"source":"communications.txt","page":1,"section":""}]},
+    {"id":"m04","question":"Give the cargo crate weight limit and Zephyr solution volume","evidence":[{"source":"logistics.txt","page":1,"section":""},{"source":"science.txt","page":1,"section":""}]},
+    {"id":"m05","question":"State the Lumen calibration day and Delta sensor maximum range","evidence":[{"source":"instruments.pdf","page":1,"section":""},{"source":"instruments.pdf","page":2,"section":""}]},
+    {"id":"m06","question":"What alarm pattern signals evacuation and what is the fallback radio frequency?","evidence":[{"source":"emergency.pdf","page":2,"section":""},{"source":"communications.txt","page":1,"section":""}]}
+  ],
+  "unanswerable": [
+    {"id":"u01","question":"Who won the Martian poetry championship?"},
+    {"id":"u02","question":"What color is the Neptune embassy roof?"},
+    {"id":"u03","question":"When was the quantum orchard founded?"}
+  ]
+}

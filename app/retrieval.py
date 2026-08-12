@@ -12,8 +12,14 @@ class RetrievalError(RuntimeError):
     pass
 
 
+STOP_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "do", "does", "for", "from", "give", "how", "in", "is", "it",
+    "of", "on", "or", "report", "state", "the", "to", "was", "what", "when", "where", "which", "who", "why", "with",
+}
+
+
 def tokenize(text: str) -> list[str]:
-    return [token for token in re.findall(r"[\w]+", text.casefold(), flags=re.UNICODE) if len(token) > 1]
+    return [token for token in re.findall(r"[\w]+", text.casefold(), flags=re.UNICODE) if len(token) > 1 and token not in STOP_WORDS]
 
 
 class HybridRetriever:

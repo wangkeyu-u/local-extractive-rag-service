@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "local-rag-curated-fixture-v1",
+  "fixture": true,
+  "scope": "Synthetic regression fixture; not production or representative quality evidence.",
+  "generated_at": "2026-08-12T17:27:55.261539+00:00",
+  "versions": {
+    "corpus_sha256": "f2df4e34c663f7f47f0562b788d333ebe2f0fb58b77de12ad06bae87140693a2",
+    "ground_truth_sha256": "c5f1f56688b3be23b96af20947ff13f0e7f849fe6d22ed0efad9169b100c50dd",
+    "embedding": "deterministic-hash-v1-384",
+    "vector_store": "ChromaDB",
+    "keyword_store": "SQLite FTS5",
+    "fusion": "RRF(k=60)",
+    "python": "3.12.13",
+    "chromadb": "1.5.9",
+    "pypdf": "6.15.0",
+    "sqlite": "3.53.1"
+  },
+  "samples": {
+    "single_hop": 12,
+    "multi_hop": 6,
+    "unanswerable": 3
+  },
+  "index": {
+    "status": "indexed",
+    "documents_indexed": 7,
+    "pages_indexed": 14,
+    "chunks_indexed": 14,
+    "sources": [
+      "communications.txt",
+      "emergency.pdf",
+      "habitat.md",
+      "instruments.pdf",
+      "logistics.txt",
+      "operations.md",
+      "science.txt"
+    ],
+    "stores": {
+      "vector": "ChromaDB",
+      "keyword": "SQLite FTS5"
+    },
+    "embedding": "deterministic-hash-v1-384"
+  },
+  "metrics": {
+    "single_recall_at_5": 1.0,
+    "rrf_mrr_at_5": 1.0,
+    "multi_evidence_coverage_at_8": 1.0,
+    "sentence_citation_coverage": 1.0,
+    "sentence_citation_precision": 1.0,
+    "abstention_accuracy": 1.0
+  },
+  "thresholds": {
+    "single_recall_at_5": 1.0,
+    "rrf_mrr_at_5": 0.9,
+    "multi_evidence_coverage_at_8": 1.0,
+    "sentence_citation_coverage": 1.0,
+    "sentence_citation_precision": 1.0,
+    "abstention_accuracy": 1.0
+  },
+  "checks": {
+    "single_recall_at_5": true,
+    "rrf_mrr_at_5": true,
+    "multi_evidence_coverage_at_8": true,
+    "sentence_citation_coverage": true,
+    "sentence_citation_precision": true,
+    "abstention_accuracy": true
+  },
+  "gate_passed": true,
+  "details": {
+    "single_hop": [
+      {
+        "id": "s01",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s02",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s03",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s04",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s05",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s06",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s07",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s08",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s09",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s10",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s11",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "s12",
+        "retrieved": true,
+        "first_relevant_rank": 1,
+        "reciprocal_rank": 1.0
+      }
+    ],
+    "multi_hop": [
+      {
+        "id": "m01",
+        "evidence_found": [
+          true,
+          true
+        ],
+        "coverage": 1.0
+      },
+      {
+        "id": "m02",
+        "evidence_found": [
+          true,
+          true
+        ],
+        "coverage": 1.0
+      },
+      {
+        "id": "m03",
+        "evidence_found": [
+          true,
+          true
+        ],
+        "coverage": 1.0
+      },
+      {
+        "id": "m04",
+        "evidence_found": [
+          true,
+          true
+        ],
+        "coverage": 1.0
+      },
+      {
+        "id": "m05",
+        "evidence_found": [
+          true,
+          true
+        ],
+        "coverage": 1.0
+      },
+      {
+        "id": "m06",
+        "evidence_found": [
+          true,
+          true
+        ],
+        "coverage": 1.0
+      }
+    ],
+    "unanswerable": [
+      {
+        "id": "u01",
+        "abstained": true
+      },
+      {
+        "id": "u02",
+        "abstained": true
+      },
+      {
+        "id": "u03",
+        "abstained": true
+      }
+    ]
+  }
+}

@@ -12,3 +12,4 @@ frontend/dist/
 .rag_data/
 *.apkg
 work/
+artifacts/evaluation/*.tmp
