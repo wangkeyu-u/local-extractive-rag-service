@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 
 from app.embeddings import DeterministicHashEmbedding
-from app.ingestion import PageDocument, build_chunks, chunk_page, load_documents
+from app.ingestion import PageDocument, build_chunks, chunk_page, load_documents, parse_markdown
 from app.main import create_app
 from app.providers import DeterministicProvider
 from app.retrieval import HybridRetriever, RetrievalError
@@ -57,6 +57,21 @@ def test_pdf_ingestion_and_chunking_preserve_page_metadata(corpus):
     assert {chunk.page for chunk in pdf_chunks} == {1, 2}
     assert all(chunk.citation.startswith("handbook.pdf p. ") for chunk in pdf_chunks)
     assert pdf_chunks[0].text.split()[-2:] == pdf_chunks[1].text.split()[:2]
+
+
+def test_markdown_preserves_heading_hierarchy_lists_and_code(tmp_path):
+    path = tmp_path / "guide.md"
+    path.write_text(
+        "# Operations\nIntro.\n## Backup\n- Keep 14 snapshots\n- Verify locally\n```bash\naurora backup verify\n```\n## Restore\nUse the recovery key.",
+        encoding="utf-8",
+    )
+    sections = parse_markdown(path)
+    assert [section.section for section in sections] == ["Operations", "Operations > Backup", "Operations > Restore"]
+    assert "- Keep 14 snapshots" in sections[1].text
+    assert "```bash\naurora backup verify\n```" in sections[1].text
+    chunks = build_chunks(sections)
+    assert chunks[1].section == "Operations > Backup"
+    assert chunks[1].content_type == "markdown"
 
 
 def test_hash_embedding_is_deterministic_normalized_and_not_fitted():

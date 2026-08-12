@@ -9,7 +9,7 @@ from pypdf import PdfReader
 from .models import Chunk, PageDocument
 
 
-SUPPORTED_SUFFIXES = {".pdf", ".txt"}
+SUPPORTED_SUFFIXES = {".pdf", ".md", ".markdown", ".txt"}
 
 
 class IngestionError(ValueError):
@@ -38,13 +38,55 @@ def load_documents(docs_dir: Path) -> list[PageDocument]:
             for number, text in enumerate(extracted, start=1):
                 if text:
                     pages.append(PageDocument(path.name, number, text, str(path)))
+        elif path.suffix.lower() in {".md", ".markdown"}:
+            pages.extend(parse_markdown(path))
         else:
             text = normalize_text(path.read_text(encoding="utf-8"))
             if text:
-                pages.append(PageDocument(path.name, 1, text, str(path)))
+                pages.append(PageDocument(path.name, 1, text, str(path), content_type="text"))
     if not pages:
         raise IngestionError("documents contain no extractable text")
     return pages
+
+
+def parse_markdown(path: Path) -> list[PageDocument]:
+    """Split Markdown by heading while preserving list and fenced-code content."""
+    heading_stack: list[str] = []
+    section_lines: list[str] = []
+    sections: list[PageDocument] = []
+    in_code = False
+
+    def flush() -> None:
+        text = "\n".join(section_lines).strip()
+        if text:
+            sections.append(
+                PageDocument(
+                    source=path.name,
+                    page=1,
+                    text=text,
+                    path=str(path),
+                    section=" > ".join(heading_stack),
+                    content_type="markdown",
+                )
+            )
+        section_lines.clear()
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        stripped = raw_line.strip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_code = not in_code
+            section_lines.append(raw_line)
+            continue
+        heading = None if in_code else re.match(r"^(#{1,6})\s+(.+?)\s*$", raw_line)
+        if heading:
+            flush()
+            level = len(heading.group(1))
+            heading_stack[level - 1 :] = [heading.group(2).strip()]
+            section_lines.append(raw_line)
+        else:
+            section_lines.append(raw_line)
+    flush()
+    return sections
 
 
 def chunk_page(page: PageDocument, chunk_size: int = 180, overlap: int = 30) -> list[Chunk]:
@@ -65,6 +107,8 @@ def chunk_page(page: PageDocument, chunk_size: int = 180, overlap: int = 30) -> 
                 chunk_id=chunk_id,
                 text=text,
                 path=page.path,
+                section=page.section,
+                content_type=page.content_type,
             )
         )
         if start + chunk_size >= len(words):

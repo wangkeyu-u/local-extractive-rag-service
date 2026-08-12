@@ -59,7 +59,7 @@ class HybridRetriever:
                 documents=[chunk.text for chunk in chunks],
                 embeddings=[self.embedding.embed(chunk.text) for chunk in chunks],
                 metadatas=[
-                    {"source": chunk.source, "page": chunk.page, "chunk_id": chunk.chunk_id, "path": chunk.path}
+                    {"source": chunk.source, "page": chunk.page, "chunk_id": chunk.chunk_id, "path": chunk.path, "section": chunk.section, "content_type": chunk.content_type}
                     for chunk in chunks
                 ],
             )
@@ -70,14 +70,14 @@ class HybridRetriever:
             db.execute("DROP TABLE IF EXISTS chunks_fts")
             db.execute("DROP TABLE IF EXISTS chunks")
             db.execute(
-                "CREATE TABLE chunks (id TEXT PRIMARY KEY, source TEXT, page INTEGER, chunk_id INTEGER, text TEXT, path TEXT)"
+                "CREATE TABLE chunks (id TEXT PRIMARY KEY, source TEXT, page INTEGER, chunk_id INTEGER, text TEXT, path TEXT, section TEXT, content_type TEXT)"
             )
             try:
                 db.execute("CREATE VIRTUAL TABLE chunks_fts USING fts5(id UNINDEXED, text, tokenize='porter unicode61')")
             except sqlite3.OperationalError as exc:
                 raise RetrievalError(f"SQLite FTS5 unavailable: {exc}") from exc
-            rows = [(c.id, c.source, c.page, c.chunk_id, c.text, c.path) for c in chunks]
-            db.executemany("INSERT INTO chunks VALUES (?, ?, ?, ?, ?, ?)", rows)
+            rows = [(c.id, c.source, c.page, c.chunk_id, c.text, c.path, c.section, c.content_type) for c in chunks]
+            db.executemany("INSERT INTO chunks VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows)
             db.executemany("INSERT INTO chunks_fts(id, text) VALUES (?, ?)", [(c.id, c.text) for c in chunks])
 
     @property
@@ -102,7 +102,7 @@ class HybridRetriever:
             return 0
 
     def _chunk(self, row) -> Chunk:
-        return Chunk(row["id"], row["source"], row["page"], row["chunk_id"], row["text"], row["path"])
+        return Chunk(row["id"], row["source"], row["page"], row["chunk_id"], row["text"], row["path"], row["section"], row["content_type"])
 
     def _chunks_by_ids(self, ids: list[str]) -> dict[str, Chunk]:
         if not ids:

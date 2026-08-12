@@ -10,6 +10,8 @@ class PageDocument:
     page: int
     text: str
     path: str
+    section: str = ""
+    content_type: str = "text"
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,8 @@ class Chunk:
     chunk_id: int
     text: str
     path: str
+    section: str = ""
+    content_type: str = "text"
 
     @property
     def citation(self) -> str:
@@ -46,6 +50,8 @@ class SearchHit:
             "chunk_id": self.chunk.chunk_id,
             "text": self.chunk.text,
             "citation": self.chunk.citation,
+            "section": self.chunk.section,
+            "content_type": self.chunk.content_type,
             "score": round(self.score, 6),
             "rerank_score": round(self.rerank_score, 6),
             "explanation": {
