@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .ingestion import IngestionError, build_chunks, load_documents
+from .grounding import verify_answer
 from .models import SearchHit
 from .providers import DeterministicProvider, RagProvider
 from .retrieval import HybridRetriever, RetrievalError, tokenize
@@ -77,9 +78,11 @@ class RagService:
         grounded = confidence >= 0.34 and bool(ranked)
         if grounded:
             answer, citations = self.provider.answer(rewritten, ranked)
-            grounded = bool(answer and citations) and all(citation in answer for citation in citations)
+            answer, sentence_verdicts = verify_answer(answer, ranked)
+            citations = list(dict.fromkeys(verdict.citation for verdict in sentence_verdicts if verdict.supported and verdict.citation))
+            grounded = bool(answer and citations) and all(verdict.supported for verdict in sentence_verdicts)
         else:
-            answer, citations = NOT_ENOUGH_EVIDENCE, []
+            answer, citations, sentence_verdicts = NOT_ENOUGH_EVIDENCE, [], []
         if not grounded:
             answer, citations = NOT_ENOUGH_EVIDENCE, []
 
@@ -94,6 +97,7 @@ class RagService:
             "confidence": round(confidence, 4),
             "grounded": grounded,
             "citations": citations,
+            "sentence_grounding": [verdict.as_dict() for verdict in sentence_verdicts],
             "results": [hit.as_dict() for hit in ranked],
         }
 

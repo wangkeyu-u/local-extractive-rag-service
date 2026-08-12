@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 
 from app.embeddings import DeterministicHashEmbedding
+from app.grounding import verify_answer
 from app.ingestion import PageDocument, build_chunks, chunk_page, load_documents, parse_markdown
 from app.main import create_app
 from app.providers import DeterministicProvider
@@ -121,6 +122,29 @@ def test_answer_is_reranked_confidence_gated_and_citation_grounded(service):
     assert result["citations"] == ["handbook.pdf p. 1"]
     assert "[handbook.pdf p. 1]" in result["answer"]
     assert result["results"][0]["rerank_score"] > result["results"][0]["score"]
+    assert result["sentence_grounding"]
+    assert all(verdict["supported"] for verdict in result["sentence_grounding"])
+
+
+def test_tampered_answer_sentence_and_wrong_page_are_removed(service):
+    hits = service.retriever.search("refund within 30 days", top_k=3)
+    tampered = (
+        "Customers may request a refund within 30 days of purchase. [handbook.pdf p. 1] "
+        "Refunds arrive instantly. [handbook.pdf p. 1] "
+        "Customer notes are private by default. [handbook.pdf p. 1]"
+    )
+    cleaned, verdicts = verify_answer(tampered, hits)
+    assert "within 30 days" in cleaned
+    assert "instantly" not in cleaned and "private by default" not in cleaned
+    assert [verdict.supported for verdict in verdicts] == [True, False, False]
+    assert verdicts[1].reason == "sentence_not_in_cited_chunk"
+
+
+def test_uncited_answer_is_fully_rejected(service):
+    hits = service.retriever.search("refund", top_k=2)
+    cleaned, verdicts = verify_answer("Refunds arrive instantly.", hits)
+    assert cleaned == ""
+    assert verdicts[0].reason == "missing_sentence_citation"
 
 
 def test_low_confidence_query_refuses_to_answer(service):
