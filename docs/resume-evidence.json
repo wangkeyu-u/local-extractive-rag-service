@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "resume_source": {
+    "path": "/Users/wangkeyu/Downloads/123简历.pdf",
+    "sha256": "dc82b04dd8ca3d628c9b5c1b2cc17ed079c1b8356ea2079b7c44870be29ca4cb",
+    "page_count": 1
+  },
+  "git": {
+    "original_baseline": "a62ab5738031547343343ba8c3c22f7398441414",
+    "round1_head": "735d0ebd27817d48e4662d6a3646ecb19130a9e0",
+    "round1_tag": "codex/round1-complete",
+    "round2_start_commit": "735d0ebd27817d48e4662d6a3646ecb19130a9e0"
+  },
+  "data_and_model": {
+    "corpus_sha256": "f2df4e34c663f7f47f0562b788d333ebe2f0fb58b77de12ad06bae87140693a2",
+    "ground_truth_sha256": "c5f1f56688b3be23b96af20947ff13f0e7f849fe6d22ed0efad9169b100c50dd",
+    "embedding": "deterministic-hash-v1-384",
+    "embedding_implementation_sha256": "f3fdfed83cd3d76cf7c4129f2596d2fadeec2f4caa50aaf388f98f770b5886e8",
+    "vector_store": "ChromaDB",
+    "keyword_store": "SQLite FTS5",
+    "fusion": "RRF(k=60)",
+    "python": "3.12.13",
+    "chromadb": "1.5.9",
+    "pypdf": "6.15.0",
+    "sqlite": "3.53.1"
+  },
+  "benchmark": {
+    "id": "local-rag-curated-fixture-v1",
+    "fixture": true,
+    "scope": "Synthetic regression fixture; not production or representative quality evidence.",
+    "samples": {
+      "single_hop": 12,
+      "multi_hop": 6,
+      "unanswerable": 3
+    },
+    "metrics": {
+      "single_recall_at_5": 1.0,
+      "rrf_mrr_at_5": 1.0,
+      "multi_evidence_coverage_at_8": 1.0,
+      "sentence_citation_coverage": 1.0,
+      "sentence_citation_precision": 1.0,
+      "abstention_accuracy": 1.0
+    },
+    "gate_passed": true,
+    "artifact_sha256": "22b6897374130c56b9a27611149fd5d26c4eb284ae3719333a3baa5967d9cb93"
+  },
+  "entries": [
+    {
+      "id": "rag-1-document-knowledge-base",
+      "resume_text": "设计并开发了一款本地优先的RAG学习助手，可将非结构化文档（PDF、Markdown、文本）转化为高可搜索性、带引用且支持交互的个人知识库。",
+      "status": "verified",
+      "evidence_summary": "PDF page extraction, structured Markdown sections, plain text ingestion, persistent search, page/section citations, FastAPI and React interaction are implemented and tested.",
+      "code_locations": [
+        "app/ingestion.py::load_documents,parse_markdown,build_chunks",
+        "app/models.py::PageDocument,Chunk,SearchHit",
+        "app/main.py::POST /index,POST /ask",
+        "frontend/src/App.jsx"
+      ],
+      "verification_commands": [
+        ".venv/bin/python -m pytest -q tests/test_rag.py -k 'pdf or markdown or vertical_slice'",
+        "RAG_API_URL=http://127.0.0.1:18765 ./scripts/demo.sh"
+      ],
+      "generated_artifacts": [
+        "docs/sample_handbook.pdf",
+        "artifacts/evaluation/benchmark-results.json"
+      ]
+    },
+    {
+      "id": "rag-2-hybrid-retrieval",
+      "resume_text": "通过使用ChromaDB向量搜索、SQLite FTS5关键词检索及RRF排序，实现了一套混合检索流程。",
+      "status": "verified",
+      "evidence_summary": "ChromaDB cosine retrieval and SQLite FTS5/BM25 are independently ranked and fused with RRF(k=60); Chroma failures are explicit with no fallback.",
+      "code_locations": [
+        "app/retrieval.py::HybridRetriever",
+        "app/embeddings.py::DeterministicHashEmbedding"
+      ],
+      "verification_commands": [
+        ".venv/bin/python -m pytest -q tests/test_rag.py -k 'hybrid or chroma'",
+        ".venv/bin/python scripts/evaluate.py"
+      ],
+      "generated_artifacts": [
+        "artifacts/evaluation/benchmark-results.json"
+      ]
+    },
+    {
+      "id": "rag-3-advanced-grounding",
+      "resume_text": "通过引入高级RAG技术（包括查询重写、确定性多跳查询分解、置信度门控及严格的句子级引用验证），有效缓解了幻觉问题，并增强了事实依据。",
+      "status": "verified",
+      "evidence_summary": "The deterministic provider rewrites and decomposes queries, the service confidence-gates answers, and the independent verifier removes uncited, wrong-page, or non-evidence sentences. This verifies mechanisms, not a general hallucination-reduction percentage.",
+      "code_locations": [
+        "app/providers.py::DeterministicProvider",
+        "app/service.py::RagService.ask,RagService._confidence",
+        "app/grounding.py::verify_answer"
+      ],
+      "verification_commands": [
+        ".venv/bin/python -m pytest -q tests/test_rag.py -k 'rewrite or multi_hop or confidence or tampered or uncited'",
+        ".venv/bin/python scripts/evaluate.py"
+      ],
+      "generated_artifacts": [
+        "artifacts/evaluation/benchmark-results.json",
+        "artifacts/evaluation/benchmark-results.md"
+      ]
+    },
+    {
+      "id": "rag-4-learning-workflow",
+      "resume_text": "开发了交互式学习工作流，支持多轮对话、自动测验生成、间隔重复系统、无缝Anki导出，以及基于D3.js的动态知识图谱可视化。",
+      "status": "verified",
+      "evidence_summary": "Session follow-ups, grounded quiz cards, persisted review intervals, valid Anki .apkg generation, and a local D3 force graph are exercised by integration tests.",
+      "code_locations": [
+        "app/service.py::RagService.ask,create_quiz,review,graph",
+        "app/main.py::POST /quiz,POST /review,GET /anki,GET /graph",
+        "app/static/graph.html"
+      ],
+      "verification_commands": [
+        ".venv/bin/python -m pytest -q tests/test_rag.py -k 'multi_turn or quiz or anki or graph'"
+      ],
+      "generated_artifacts": [
+        "app/static/d3.min.js",
+        "app/static/graph.html"
+      ]
+    },
+    {
+      "id": "rag-5-perfect-benchmark",
+      "resume_text": "建立了严格的离线评估质量门控，涵盖检索、多跳召回及引用覆盖率，并在混合检索基线上实现了完美的基准指标。",
+      "status": "unsupported",
+      "evidence_summary": "The offline gate is implemented and all computed metrics are 1.0, but only on a synthetic curated fixture (12 single-hop, 6 multi-hop, 3 unanswerable). There is no separate baseline comparison and the resume text omits this scope, so the broad 'perfect benchmark' claim is unsupported.",
+      "computed_fixture_metrics": {
+        "single_recall_at_5": 1.0,
+        "rrf_mrr_at_5": 1.0,
+        "multi_evidence_coverage_at_8": 1.0,
+        "sentence_citation_coverage": 1.0,
+        "sentence_citation_precision": 1.0,
+        "abstention_accuracy": 1.0
+      },
+      "code_locations": [
+        "app/evaluation.py::evaluate",
+        "benchmark/ground_truth.json",
+        "tests/test_evaluation.py"
+      ],
+      "verification_commands": [
+        "make eval",
+        ".venv/bin/python -m pytest -q tests/test_evaluation.py"
+      ],
+      "generated_artifacts": [
+        "artifacts/evaluation/benchmark-results.json",
+        "artifacts/evaluation/benchmark-results.md"
+      ]
+    }
+  ]
+}
