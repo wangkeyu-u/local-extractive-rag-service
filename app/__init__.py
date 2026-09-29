@@ -1,5 +1,5 @@
-"""Local extractive RAG API package."""
-from .main import app
+"""Local hybrid RAG API package."""
+from .main import app, create_app
 
 
-__all__ = ["app"]
+__all__ = ["app", "create_app"]

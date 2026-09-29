@@ -39,7 +39,8 @@ body {
 
 button,
 textarea,
-input {
+input,
+a {
   font: inherit;
 }
 
@@ -174,6 +175,25 @@ h2 {
     box-shadow 150ms ease,
     background 150ms ease;
 }
+
+.lab-links {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.lab-links a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid rgba(255,255,255,.25);
+  color: var(--paper);
+  text-decoration: none;
+  font-weight: 850;
+}
+
+.lab-links a:hover { color: var(--ink); background: var(--yellow); }
 
 .primary-action,
 .ask-button {
@@ -481,6 +501,39 @@ input[type="range"] {
   font-size: clamp(1.15rem, 1rem + 0.7vw, 1.58rem);
   line-height: 1.52;
 }
+
+.trace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.trace span {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  color: var(--green-dark);
+  background: #e4f0df;
+  font-size: .75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.study-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) auto;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--charcoal);
+  background: linear-gradient(115deg, #e3eff3, #fffdf6 58%);
+}
+
+.study-panel > div { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; align-items: center; }
+.study-panel > div span { grid-column: 2; color: var(--muted); }
+.study-panel > button { border: 1px solid var(--charcoal); padding: 0 16px; color: white; background: var(--blue); font-weight: 900; }
+.study-panel article { grid-column: 1 / -1; padding: 12px; border-top: 1px solid var(--line); }
+.study-panel article p { margin-bottom: 8px; font-family: Georgia,serif; }
+.study-panel summary { cursor: pointer; color: var(--blue); font-weight: 900; }
 
 .evidence-grid {
   display: grid;

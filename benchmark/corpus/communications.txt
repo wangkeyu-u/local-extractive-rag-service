@@ -1,0 +1,1 @@
+The Vega uplink window opens at 06:40 UTC each day. If the primary channel fails, crews use the fallback frequency 145.8 MHz. The verification phrase is cobalt sunrise.

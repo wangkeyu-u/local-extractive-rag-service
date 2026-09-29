@@ -1,132 +1,59 @@
-# Local Extractive RAG API — 本地抽取式 RAG 服务 / Local-Only Extractive RAG
+# Local Hybrid RAG Learning Lab
 
-> 纯本地、不调用任何外部 LLM API 的抽取式 RAG —— TF-IDF 检索、证据锚定、只从文档中回答。
->
-> Local-only extractive RAG that never calls external LLM APIs — TF-IDF retrieval, evidence-grounded, answers only from matched source chunks.
+A local-first, runnable RAG vertical slice for PDF/text research and study. It parses page-level PDF text, persists vector search in **ChromaDB**, persists keyword search in **SQLite FTS5**, fuses both ranked lists with **Reciprocal Rank Fusion (RRF)**, and returns inspectable retrieval traces and page citations.
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688)](https://fastapi.tiangolo.com/)
-[![scikit-learn](https://img.shields.io/badge/ML-scikit--learn-F7931E)](https://scikit-learn.org/)
-[![Local Only](https://img.shields.io/badge/Local%20Only-No%20LLM%20API-success)]()
+The default provider is deliberately deterministic and offline. It does not call an LLM or download an embedding model. The Chroma vectors are fixed-dimensional feature-hashing embeddings generated per text (not TF-IDF). If ChromaDB cannot import, initialize, index, or query, the request fails explicitly; there is no disguised retrieval fallback.
 
----
+## Verified capabilities
 
-## 项目简介（中文）
+- `.pdf`, structured Markdown, and `.txt` ingestion, overlapping chunks, source/page/section/chunk metadata
+- persistent ChromaDB cosine vector retrieval and independent SQLite FTS5/BM25 retrieval
+- RRF hybrid fusion with vector rank/distance, FTS rank/BM25, matched terms, and subquery trace
+- deterministic provider abstraction for rewrite, multi-part query decomposition, reranking, extractive answers, confidence gating, and citation grounding
+- bounded in-process multi-turn sessions with follow-up query rewriting
+- grounded fill-in-the-blank quiz generation, persisted review schedules, and real Anki `.apkg` export
+- local D3.js force-directed knowledge graph with document/concept links and page evidence
+- generated two-page sample PDF, unit/integration/API tests, React/Vite evidence console
 
-纯本地运行的抽取式 RAG API 服务，用于文本文档问答。它构建内存中的 TF-IDF 检索索引，从匹配的文档片段中生成抽取式回答，**不调用 OpenAI、Anthropic、DeepSeek、Gemini 或任何外部 LLM API**。证据不足时返回"证据不足"的安全回答而非编造。包含 React/Vite 前端用于本地 UI 测试。核心端点：`POST /index` 索引文档、`POST /ask` 提问并返回带来源、分数和文本的证据片段。
+This repository does **not** claim benchmark gains, answer-quality improvements, OCR, table extraction, or production-grade authentication. Scanned PDFs without an extractable text layer are skipped as empty pages.
 
----
+## Requirements and install
 
-# Local Extractive RAG API Service
-
-![Local Extractive RAG Service hero](docs/assets/readme-hero.png)
-
-Local-only extractive RAG for plain-text documents. It indexes files, retrieves evidence, and answers only from matched source chunks without calling external LLM APIs.
-
-**Built for:** FastAPI document Q&A, TF-IDF retrieval, grounded answers, evidence chunks, private local demos.
-
-The backend is a FastAPI service that builds an in-memory TF-IDF retrieval index and returns extractive answers grounded only in retrieved document evidence. It does not call OpenAI, Anthropic, DeepSeek, Gemini, external LLM APIs, or paid external services.
-
-The project also includes a React/Vite frontend for testing the API through a polished local UI.
-
-## Requirement Coverage
-
-- `POST /index` reads all non-empty `.txt` files from `docs/`.
-- Documents are split into retrieval chunks.
-- The retrieval index is stored in memory at runtime.
-- `POST /ask` retrieves relevant chunks for a question.
-- Answers are generated only from retrieved document text.
-- Successful answers return evidence chunks with `source`, `chunk_id`, `score`, and `text`.
-- Weak or missing evidence returns an insufficient-evidence answer instead of guessing.
-- Common error cases return clear messages.
-- The app runs locally with FastAPI, scikit-learn, React, and Vite.
-
-## Tech Stack
-
-- Python 3.10+
-- FastAPI
-- scikit-learn TF-IDF
-- pytest
-- React
-- Vite
-- Docker
-
-## Project Structure
-
-```txt
-.
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── rag.py
-│   └── schemas.py
-├── docs/
-│   ├── privacy_policy.txt
-│   ├── product_overview.txt
-│   ├── refund_policy.txt
-│   ├── shipping_policy.txt
-│   └── support_policy.txt
-├── frontend/
-│   ├── src/
-│   ├── package.json
-│   └── vite.config.js
-├── tests/
-├── .env.example
-├── Dockerfile
-├── Makefile
-├── requirements.txt
-└── README.md
-```
-
-## Environment
-
-Copy the example env files if you want local overrides:
+- Python 3.10–3.13 (tested here with Python 3.12)
+- Node.js 20+ only for the optional React frontend
+- a Python build whose SQLite includes FTS5
 
 ```bash
-cp .env.example .env
-cp frontend/.env.example frontend/.env
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 ```
 
-Default local URLs:
-
-```txt
-Backend:  http://127.0.0.1:8000
-Frontend: http://127.0.0.1:5173
-```
-
-## Backend Setup
+Generate the sample PDF again if desired:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+.venv/bin/python scripts/generate_sample_pdf.py
 ```
 
-Run the backend:
+## Run the demo
+
+Terminal 1:
 
 ```bash
-uvicorn app:app --reload
+.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-Alternative:
+Terminal 2:
 
 ```bash
-uvicorn app.main:app --reload
+./scripts/demo.sh
 ```
 
-Open FastAPI docs:
+Useful pages:
 
-```txt
-http://127.0.0.1:8000/docs
-```
+- API docs: `http://127.0.0.1:8000/docs`
+- D3 evidence graph: `http://127.0.0.1:8000/graph/view`
 
-Convenience command:
-
-```bash
-make run
-```
-
-## Frontend Setup
+Optional frontend:
 
 ```bash
 cd frontend
@@ -134,167 +61,81 @@ npm install
 npm run dev
 ```
 
-Open the UI:
+Open `http://127.0.0.1:5173`. Vite proxies `/api` to the backend.
 
-```txt
-http://127.0.0.1:5173
-```
+## API walkthrough
 
-The frontend uses Vite proxying, so `/api/index`, `/api/ask`, `/api/documents`, and `/api/health` forward to `http://127.0.0.1:8000`.
-
-## API Examples
-
-Service info:
+Index `docs/*.pdf` and `docs/*.txt`:
 
 ```bash
-curl http://127.0.0.1:8000/
+curl -sS -X POST http://127.0.0.1:8000/index
 ```
 
-Index documents:
+Ask a grounded question:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/index
+curl -sS -X POST http://127.0.0.1:8000/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Explain refunds and compare shipping","top_k":5}'
 ```
 
-Example response:
+The JSON includes `rewritten_query`, `subqueries`, `confidence`, `grounded`, `citations`, and per-result `explanation`. To continue a conversation, pass the returned `session_id` in the next `/ask` request.
 
-```json
-{
-  "status": "indexed",
-  "documents_indexed": 5,
-  "chunks_indexed": 5,
-  "sources": [
-    "privacy_policy.txt",
-    "product_overview.txt",
-    "refund_policy.txt",
-    "shipping_policy.txt",
-    "support_policy.txt"
-  ]
-}
-```
-
-Ask a question:
+Study endpoints:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is the refund policy?", "top_k": 3}'
+curl -sS -X POST http://127.0.0.1:8000/quiz \
+  -H 'Content-Type: application/json' \
+  -d '{"topic":"refund","count":3}'
+
+curl -OJ 'http://127.0.0.1:8000/anki?topic=refund&count=10'
 ```
 
-Example response:
+`POST /review` accepts a returned card and `rating` from `0` (again) to `3` (easy), then persists its due time in `.rag_data/rag.sqlite3`.
 
-```json
-{
-  "answer": "Customers can request a refund within 30 days of purchase.",
-  "chunks": [
-    {
-      "source": "refund_policy.txt",
-      "chunk_id": 0,
-      "score": 0.2719,
-      "text": "Customers can request a refund within 30 days of purchase..."
-    }
-  ],
-  "sources": [
-    {
-      "source": "refund_policy.txt",
-      "chunk_id": 0,
-      "score": 0.2719,
-      "text": "Customers can request a refund within 30 days of purchase..."
-    }
-  ]
-}
-```
-
-Weak evidence response:
-
-```json
-{
-  "answer": "I do not have enough evidence in the provided documents to answer this question.",
-  "chunks": [],
-  "sources": []
-}
-```
-
-List documents:
+## Test and build evidence
 
 ```bash
-curl http://127.0.0.1:8000/documents
+.venv/bin/python -m pytest -q
+cd frontend && npm run build
 ```
 
-Health check:
+Run the versioned offline quality gate and regenerate the resume evidence ledger:
 
 ```bash
-curl http://127.0.0.1:8000/health
+make eval
+make evidence
 ```
 
-## Error Behavior
+The committed benchmark is explicitly a synthetic curated fixture: 12 single-hop, 6 multi-hop, and 3 unanswerable questions across two generated PDFs, two Markdown documents, and three text documents. Current computed fixture metrics are recorded in `artifacts/evaluation/benchmark-results.json`; they must not be extrapolated to production or described as a baseline comparison. `docs/RESUME_EVIDENCE.md` therefore marks the resume's broad “perfect benchmark” sentence as unsupported despite the fixture currently passing every gate.
 
-- Ask before indexing: `no index found`
-- Empty question: `empty question`
-- Missing `docs/` folder: `docs folder not found`
-- Empty `docs/` folder: `no text documents found in docs folder`
-- Empty documents: `documents are empty; no index can be built`
-- Documents with no searchable terms: `documents do not contain searchable text; no index can be built`
-- Weak evidence: returns the insufficient-evidence answer with no chunks
+The integration suite creates and parses a two-page PDF, exercises real ChromaDB and FTS5 stores, inspects RRF traces and citations, verifies the confidence refusal path and multi-turn rewrite, persists a review, loads graph data, and opens the generated `.apkg` as an Anki ZIP package. Negative tests corrupt corpus bytes, change evidence locators, remove retrieval, and inject wrong citations; each must make the evaluator reject the run.
 
-## Test
+## Architecture
 
-Backend tests:
-
-```bash
-pytest -q
+```text
+PDF/TXT -> page-aware chunks -> ChromaDB vector rank --\
+                         \----> SQLite FTS5 rank ----- RRF -> multi-query merge
+                                                               -> deterministic rerank
+                                                               -> confidence gate
+                                                               -> extractive answer + [file p. N]
+                                                               -> quiz / review / Anki / graph
 ```
 
-Or:
+`RagProvider` is the seam for a future local or remote model provider. The included `DeterministicProvider` keeps CI and interview demos reproducible and offline.
 
-```bash
-make test
-```
+Persistent runtime data is written under `.rag_data/` and is intentionally gitignored. Re-run `POST /index` after changing the corpus.
 
-Frontend production build:
+## ChromaDB failure behavior
 
-```bash
-cd frontend
-npm run build
-```
+ChromaDB is required. A missing/incompatible dependency produces a `400` response containing `ChromaDB unavailable ... no fallback was used`; indexing and asking do not substitute TF-IDF or vector-like keyword scoring. Use a supported Python and reinstall `requirements.txt`.
 
-Manual smoke test:
+## Safety and rollback
 
-```bash
-curl -X POST http://127.0.0.1:8000/index
-curl -X POST http://127.0.0.1:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Does the company sell customer data?", "top_k": 3}'
-```
+Implementation branch: `codex/interview-alignment`
 
-## Docker
+Original default branch: `main`
 
-Build and run the backend container:
+Original HEAD: `a62ab5738031547343343ba8c3c22f7398441414`
 
-```bash
-docker build -t local-extractive-rag-service .
-docker run --rm -p 8000:8000 local-extractive-rag-service
-```
-
-Then open:
-
-```txt
-http://127.0.0.1:8000/docs
-```
-
-## Tradeoffs
-
-- TF-IDF is simple, local, and explainable, but weaker than semantic embeddings.
-- Extractive answering is safer than generative answering, but responses may sound less natural.
-- The index is in memory, so it must be rebuilt after server restart.
-- The similarity threshold is intentionally simple and may need tuning for larger corpora.
-- The frontend is for local testing and demonstration, not production deployment.
-
-## Future Improvements
-
-- Add persistent vector storage.
-- Add local embeddings for better semantic matching.
-- Add document upload and reindexing from the frontend.
-- Add sentence-level highlighting inside evidence cards.
-- Add GitHub Actions CI when the GitHub token has `workflow` scope.
-- Add a hosted demo environment.
+No push or force operation is part of this work. See [ROLLBACK.md](ROLLBACK.md) for inspect, file restore, and branch removal commands.

@@ -1,0 +1,1 @@
+The Zephyr sampling protocol uses 12 milliliters of solution. Samples spin at 2400 rpm for eight minutes. Completed vials are stored in rack Kappa.
