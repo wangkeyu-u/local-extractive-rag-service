@@ -1,132 +1,44 @@
-# Local Extractive RAG API — 本地抽取式 RAG 服务 / Local-Only Extractive RAG
+# Groundline
 
-> 纯本地、不调用任何外部 LLM API 的抽取式 RAG —— TF-IDF 检索、证据锚定、只从文档中回答。
->
-> Local-only extractive RAG that never calls external LLM APIs — TF-IDF retrieval, evidence-grounded, answers only from matched source chunks.
+一个本地运行、证据可追溯的抽取式 RAG 工作台。它只回答 `docs/*.txt` 中能找到的内容，不调用外部大模型，也不会把文档发出这台机器。
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688)](https://fastapi.tiangolo.com/)
-[![scikit-learn](https://img.shields.io/badge/ML-scikit--learn-F7931E)](https://scikit-learn.org/)
-[![Local Only](https://img.shields.io/badge/Local%20Only-No%20LLM%20API-success)]()
+[![CI](https://github.com/wangkeyu-u/local-extractive-rag-service/actions/workflows/ci.yml/badge.svg)](https://github.com/wangkeyu-u/local-extractive-rag-service/actions/workflows/ci.yml)
+[![Python 3.10-3.12](https://img.shields.io/badge/Python-3.10--3.12-315d88)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-277658)](https://fastapi.tiangolo.com/)
+[![React 19](https://img.shields.io/badge/React-19-222320)](https://react.dev/)
+[![Local only](https://img.shields.io/badge/data-local_only-a95c13)](#隐私与边界)
 
----
+![Groundline retrieval console](docs/assets/readme-hero.png)
 
-## 项目简介（中文）
+Groundline 适合用来理解和演示一条完整但不复杂的 RAG 链路。后端用 TF-IDF 和余弦相似度检索文本片段，再从命中的原文中抽取句子组成答案。前端把答案、引用、相关度、命中词和原始片段放在同一屏，方便检查每个结论从哪里来。
 
-纯本地运行的抽取式 RAG API 服务，用于文本文档问答。它构建内存中的 TF-IDF 检索索引，从匹配的文档片段中生成抽取式回答，**不调用 OpenAI、Anthropic、DeepSeek、Gemini 或任何外部 LLM API**。证据不足时返回"证据不足"的安全回答而非编造。包含 React/Vite 前端用于本地 UI 测试。核心端点：`POST /index` 索引文档、`POST /ask` 提问并返回带来源、分数和文本的证据片段。
+## 它能做什么
 
----
+| 工作流 | 实际能力 |
+| --- | --- |
+| 查询 | 返回抽取式答案、置信状态、耗时和可点击引用 |
+| 证据检查 | 展示来源文件、片段编号、排名、相似度和命中词 |
+| 语料管理 | 从界面添加、覆盖、查看和删除 UTF-8 `.txt` 文件 |
+| 索引配置 | 调整分块大小和重叠量，然后真实重建内存索引 |
+| 拒答 | 最高分低于 `0.12` 时返回证据不足，不补写文档外内容 |
+| 检索检查 | 用 4 条内置问题核对预期来源是否排在第一位 |
 
-# Local Extractive RAG API Service
+界面只面向桌面端。它采用固定的三栏检索控制台布局，没有手机导航、抽屉或移动端适配。
 
-![Local Extractive RAG Service hero](docs/assets/readme-hero.png)
+## 快速开始
 
-Local-only extractive RAG for plain-text documents. It indexes files, retrieves evidence, and answers only from matched source chunks without calling external LLM APIs.
+需要 Python 3.10 到 3.12、Node.js 20+ 和 npm。
 
-**Built for:** FastAPI document Q&A, TF-IDF retrieval, grounded answers, evidence chunks, private local demos.
-
-The backend is a FastAPI service that builds an in-memory TF-IDF retrieval index and returns extractive answers grounded only in retrieved document evidence. It does not call OpenAI, Anthropic, DeepSeek, Gemini, external LLM APIs, or paid external services.
-
-The project also includes a React/Vite frontend for testing the API through a polished local UI.
-
-## Requirement Coverage
-
-- `POST /index` reads all non-empty `.txt` files from `docs/`.
-- Documents are split into retrieval chunks.
-- The retrieval index is stored in memory at runtime.
-- `POST /ask` retrieves relevant chunks for a question.
-- Answers are generated only from retrieved document text.
-- Successful answers return evidence chunks with `source`, `chunk_id`, `score`, and `text`.
-- Weak or missing evidence returns an insufficient-evidence answer instead of guessing.
-- Common error cases return clear messages.
-- The app runs locally with FastAPI, scikit-learn, React, and Vite.
-
-## Tech Stack
-
-- Python 3.10+
-- FastAPI
-- scikit-learn TF-IDF
-- pytest
-- React
-- Vite
-- Docker
-
-## Project Structure
-
-```txt
-.
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── rag.py
-│   └── schemas.py
-├── docs/
-│   ├── privacy_policy.txt
-│   ├── product_overview.txt
-│   ├── refund_policy.txt
-│   ├── shipping_policy.txt
-│   └── support_policy.txt
-├── frontend/
-│   ├── src/
-│   ├── package.json
-│   └── vite.config.js
-├── tests/
-├── .env.example
-├── Dockerfile
-├── Makefile
-├── requirements.txt
-└── README.md
-```
-
-## Environment
-
-Copy the example env files if you want local overrides:
+先启动 API：
 
 ```bash
-cp .env.example .env
-cp frontend/.env.example frontend/.env
-```
-
-Default local URLs:
-
-```txt
-Backend:  http://127.0.0.1:8000
-Frontend: http://127.0.0.1:5173
-```
-
-## Backend Setup
-
-```bash
-python -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-Run the backend:
-
-```bash
 uvicorn app:app --reload
 ```
 
-Alternative:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-Open FastAPI docs:
-
-```txt
-http://127.0.0.1:8000/docs
-```
-
-Convenience command:
-
-```bash
-make run
-```
-
-## Frontend Setup
+再打开一个终端启动界面：
 
 ```bash
 cd frontend
@@ -134,167 +46,132 @@ npm install
 npm run dev
 ```
 
-Open the UI:
+打开以下地址：
 
-```txt
-http://127.0.0.1:5173
-```
+- 工作台: [http://127.0.0.1:5174](http://127.0.0.1:5174)
+- OpenAPI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-The frontend uses Vite proxying, so `/api/index`, `/api/ask`, `/api/documents`, and `/api/health` forward to `http://127.0.0.1:8000`.
+Vite 会把 `/api/*` 代理到本地 FastAPI。首次打开时，如果 `docs/` 中已有文本但索引为空，界面会自动完成第一次构建。
 
-## API Examples
-
-Service info:
+也可以使用 Makefile：
 
 ```bash
-curl http://127.0.0.1:8000/
+make install
+make run
+
+# 另一个终端
+make frontend-install
+make frontend-dev
 ```
 
-Index documents:
+## 使用方式
+
+在 Corpus 页面点击 `Add .txt` 可以导入文本。文件会写入本地 `docs/`，随后立即重建索引。选择文件后可以查看原文、词数和分块数，也可以删除文件。
+
+在 Query 页面输入问题并运行检索。答案中的数字引用会选中右侧对应证据。右侧面板显示完整片段、相似度和命中词，方便判断答案是否真的被文档支持。
+
+设置面板中的 `Top K` 只影响查询。`Chunk size` 和 `Overlap` 会触发重新索引，健康接口会返回当前实际生效的参数。
+
+Checks 页面包含一个很小的黄金集，用来快速发现 demo 语料的检索退化。它不是通用准确率测试，也不代表更大数据集上的表现。
+
+## 检索链路
+
+```mermaid
+flowchart LR
+    A[Local txt files] --> B[Word chunks]
+    B --> C[TF-IDF unigrams and bigrams]
+    Q[Question] --> D[Cosine similarity]
+    C --> D
+    D --> E{Top score at least 0.12}
+    E -- No --> F[Insufficient evidence]
+    E -- Yes --> G[Ranked passages]
+    G --> H[Extract matching sentences]
+    H --> I[Answer with citations]
+```
+
+默认分块大小是 200 个词，重叠 40 个词。索引保存在当前 Python 进程内，服务重启后需要重新构建。重新构建失败时会清空旧索引，避免继续使用已经过期的结果。
+
+## API
+
+| Method | Endpoint | 用途 |
+| --- | --- | --- |
+| `GET` | `/health` | API 状态、索引状态和当前参数 |
+| `POST` | `/index` | 使用指定分块参数重建索引 |
+| `POST` | `/ask` | 检索证据并返回抽取式答案 |
+| `GET` | `/documents` | 列出语料及统计信息 |
+| `GET` | `/documents/{source}` | 读取一个文档的原文与统计 |
+| `POST` | `/documents` | 新增或覆盖一个 `.txt` 文档 |
+| `DELETE` | `/documents/{source}` | 删除文档并重建剩余索引 |
+
+重建索引：
 
 ```bash
-curl -X POST http://127.0.0.1:8000/index
+curl -X POST http://127.0.0.1:8000/index \
+  -H "Content-Type: application/json" \
+  -d '{"chunk_size":200,"chunk_overlap":40}'
 ```
 
-Example response:
+新增文档：
 
-```json
-{
-  "status": "indexed",
-  "documents_indexed": 5,
-  "chunks_indexed": 5,
-  "sources": [
-    "privacy_policy.txt",
-    "product_overview.txt",
-    "refund_policy.txt",
-    "shipping_policy.txt",
-    "support_policy.txt"
-  ]
-}
+```bash
+curl -X POST http://127.0.0.1:8000/documents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source":"release_notes.txt",
+    "text":"Groundline answers only from local evidence.",
+    "reindex":true
+  }'
 ```
 
-Ask a question:
+提问：
 
 ```bash
 curl -X POST http://127.0.0.1:8000/ask \
   -H "Content-Type: application/json" \
-  -d '{"question": "What is the refund policy?", "top_k": 3}'
+  -d '{"question":"What is the refund policy?","top_k":3}'
 ```
 
-Example response:
+一个证据片段包含 `source`、`chunk_id`、`rank`、`score`、`matched_terms` 和原文。完整请求与响应模型可以直接在 OpenAPI 页面查看。
 
-```json
-{
-  "answer": "Customers can request a refund within 30 days of purchase.",
-  "chunks": [
-    {
-      "source": "refund_policy.txt",
-      "chunk_id": 0,
-      "score": 0.2719,
-      "text": "Customers can request a refund within 30 days of purchase..."
-    }
-  ],
-  "sources": [
-    {
-      "source": "refund_policy.txt",
-      "chunk_id": 0,
-      "score": 0.2719,
-      "text": "Customers can request a refund within 30 days of purchase..."
-    }
-  ]
-}
-```
-
-Weak evidence response:
-
-```json
-{
-  "answer": "I do not have enough evidence in the provided documents to answer this question.",
-  "chunks": [],
-  "sources": []
-}
-```
-
-List documents:
+## 验证
 
 ```bash
-curl http://127.0.0.1:8000/documents
+make check
 ```
 
-Health check:
+当前检查包括 24 个后端测试、Vite 生产构建和依赖审计。测试覆盖分块、索引配置、文档增删改读、路径校验、检索排名、引用、拒答和失败重建。
 
-```bash
-curl http://127.0.0.1:8000/health
+GitHub Actions 会在 push 和 pull request 上运行后端测试、前端构建与完整依赖审计。
+
+## 项目结构
+
+```text
+.
+├── app/
+│   ├── main.py          # FastAPI routes
+│   ├── rag.py           # indexing, retrieval, extraction, corpus writes
+│   └── schemas.py       # request and response models
+├── docs/
+│   ├── assets/          # GitHub preview
+│   ├── interface-plan.md
+│   └── *.txt            # local corpus
+├── frontend/
+│   ├── src/App.jsx      # query, corpus, checks, dialogs
+│   ├── src/styles.css   # desktop visual system
+│   └── vite.config.js   # local API proxy on port 5174
+├── tests/test_rag.py
+├── PRODUCT.md
+├── Dockerfile
+└── Makefile
 ```
 
-## Error Behavior
+## 隐私与边界
 
-- Ask before indexing: `no index found`
-- Empty question: `empty question`
-- Missing `docs/` folder: `docs folder not found`
-- Empty `docs/` folder: `no text documents found in docs folder`
-- Empty documents: `documents are empty; no index can be built`
-- Documents with no searchable terms: `documents do not contain searchable text; no index can be built`
-- Weak evidence: returns the insufficient-evidence answer with no chunks
+- 文档和索引都在本机。前端只请求 `127.0.0.1:8000`，查询历史只保存在浏览器本地存储。
+- 没有账号、遥测、云向量库或外部模型请求。
+- TF-IDF 依赖词汇重合，不擅长处理同义改写和跨语言查询。
+- 抽取式回答不会生成文档外事实，但仍需要用户检查引用是否足以支持结论。
+- 内存索引适合小型语料和演示，不适合多租户、大规模持久化检索或权限隔离。
+- 文档名只允许字母、数字、点、短横线和下划线，并且必须以 `.txt` 结尾。单个文档正文最多 1,000,000 个字符。
 
-## Test
-
-Backend tests:
-
-```bash
-pytest -q
-```
-
-Or:
-
-```bash
-make test
-```
-
-Frontend production build:
-
-```bash
-cd frontend
-npm run build
-```
-
-Manual smoke test:
-
-```bash
-curl -X POST http://127.0.0.1:8000/index
-curl -X POST http://127.0.0.1:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Does the company sell customer data?", "top_k": 3}'
-```
-
-## Docker
-
-Build and run the backend container:
-
-```bash
-docker build -t local-extractive-rag-service .
-docker run --rm -p 8000:8000 local-extractive-rag-service
-```
-
-Then open:
-
-```txt
-http://127.0.0.1:8000/docs
-```
-
-## Tradeoffs
-
-- TF-IDF is simple, local, and explainable, but weaker than semantic embeddings.
-- Extractive answering is safer than generative answering, but responses may sound less natural.
-- The index is in memory, so it must be rebuilt after server restart.
-- The similarity threshold is intentionally simple and may need tuning for larger corpora.
-- The frontend is for local testing and demonstration, not production deployment.
-
-## Future Improvements
-
-- Add persistent vector storage.
-- Add local embeddings for better semantic matching.
-- Add document upload and reindexing from the frontend.
-- Add sentence-level highlighting inside evidence cards.
-- Add GitHub Actions CI when the GitHub token has `workflow` scope.
-- Add a hosted demo environment.
+完整的产品约束见 [PRODUCT.md](PRODUCT.md)，界面结构与交互说明见 [docs/interface-plan.md](docs/interface-plan.md)。
