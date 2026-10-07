@@ -254,7 +254,7 @@ export default function App() {
               id="question"
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="Ask something covered by docs/*.txt"
+              placeholder="Ask something covered by data/documents/*.txt"
               rows={4}
             />
 

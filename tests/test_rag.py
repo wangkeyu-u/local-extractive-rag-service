@@ -20,8 +20,8 @@ def client():
 
 
 def write_docs(base_path: Path, files: dict[str, str]) -> None:
-    docs_dir = base_path / "docs"
-    docs_dir.mkdir()
+    docs_dir = base_path / "data" / "documents"
+    docs_dir.mkdir(parents=True)
     for filename, text in files.items():
         (docs_dir / filename).write_text(text, encoding="utf-8")
 
@@ -197,7 +197,7 @@ def test_missing_docs_folder_returns_clear_error(tmp_path, monkeypatch, client):
 
 
 def test_empty_docs_folder_returns_clear_error(tmp_path, monkeypatch, client):
-    (tmp_path / "docs").mkdir()
+    (tmp_path / "data" / "documents").mkdir(parents=True)
     monkeypatch.chdir(tmp_path)
 
     response = client.post("/index")
@@ -234,7 +234,7 @@ def test_failed_reindex_clears_stale_index(tmp_path, monkeypatch, client):
     client.post("/index")
     assert rag.rag_index.is_ready
 
-    for doc_path in (tmp_path / "docs").glob("*.txt"):
+    for doc_path in (tmp_path / "data" / "documents").glob("*.txt"):
         doc_path.unlink()
 
     response = client.post("/index")
@@ -242,3 +242,17 @@ def test_failed_reindex_clears_stale_index(tmp_path, monkeypatch, client):
     assert response.status_code == 400
     assert response.json() == {"detail": "no text documents found in docs folder"}
     assert not rag.rag_index.is_ready
+
+
+def test_bundled_document_path_is_ready_for_a_checkout(monkeypatch):
+    """A clean checkout ships the corpus at the path used by the API and Docker."""
+    monkeypatch.chdir(Path(__file__).resolve().parents[1])
+    response = rag.build_index()
+    assert response["documents_indexed"] == 5
+    assert response["sources"] == [
+        "privacy_policy.txt", "product_overview.txt", "refund_policy.txt",
+        "shipping_policy.txt", "support_policy.txt",
+    ]
+    answer = rag.answer_question("What is the refund policy?")
+    assert "30 days" in answer["answer"]
+    assert "refund_policy.txt" in {chunk["source"] for chunk in answer["chunks"]}
