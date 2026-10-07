@@ -6,7 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-DOCS_DIR = Path("docs")
+DOCS_DIR = Path("data/documents")
 CHUNK_SIZE_WORDS = 200
 CHUNK_OVERLAP_WORDS = 40
 TOP_K = 3
